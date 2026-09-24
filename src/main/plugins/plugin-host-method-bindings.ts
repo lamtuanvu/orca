@@ -1,4 +1,11 @@
 import {
+  pluginOwnCommandSchema,
+  pluginOpenReviewSchema,
+  pluginOpenExternalSchema,
+  type PluginOpenedReview,
+  type PluginOpenReviewInput
+} from '../../shared/plugins/plugin-review-contract'
+import {
   getPluginHostMethodSpec,
   PLUGIN_HOST_API_V0,
   PLUGIN_TERMINAL_ID_MAX_LENGTH,
@@ -17,6 +24,9 @@ export type PluginWorktreeContext = {
 /** Structural service surface the facade delegates to. Desktop main binds it
  *  over runtime services; relay policy and conformance tests bind fakes. */
 export type PluginHostServices = {
+  invokeOwnCommand?(pluginId: string, commandId: string, args: unknown): Promise<unknown>
+  openReview?(pluginId: string, input: PluginOpenReviewInput): Promise<PluginOpenedReview>
+  openExternal?(pluginId: string, url: string): Promise<{ opened: true }>
   resolveActiveWorktreeContext(): Promise<PluginWorktreeContext | null>
   listWorktreeTerminals(worktreeId: string): Promise<{ id: string }[]>
   sendTerminalText(
@@ -69,6 +79,26 @@ function definePluginMethod(
 }
 
 const HANDLERS = new Map<string, BoundPluginHostMethod>([
+  definePluginMethod('commands.invokeOwn', async (params, { pluginId, services }) => {
+    if (!services.invokeOwnCommand) {
+      throw new Error('Panel commands unavailable in this host')
+    }
+    const input = pluginOwnCommandSchema.parse(params)
+    return (await services.invokeOwnCommand(pluginId, input.commandId, input.args)) ?? null
+  }),
+  definePluginMethod('diffs.openReview', async (params, { pluginId, services }) => {
+    if (!services.openReview) {
+      throw new Error('Native reviews unavailable in this host')
+    }
+    return services.openReview(pluginId, pluginOpenReviewSchema.parse(params))
+  }),
+  definePluginMethod('browser.openExternal', async (params, { pluginId, services }) => {
+    if (!services.openExternal) {
+      throw new Error('Opening the browser is unavailable in this host')
+    }
+    const { url } = pluginOpenExternalSchema.parse(params)
+    return services.openExternal(pluginId, url)
+  }),
   definePluginMethod('workspace.readContext', async (_params, { services }) => {
     const context = await services.resolveActiveWorktreeContext()
     if (!context) {

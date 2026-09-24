@@ -1,3 +1,4 @@
+import { createPluginReviewSessions, executeServiceHostCall } from './plugin-review-host'
 import type { PluginEventName } from '../../shared/plugins/plugin-manifest'
 import {
   capabilityKinds,
@@ -18,9 +19,8 @@ import {
 } from './plugin-discovery'
 import { PluginEventBus } from './plugin-event-bus'
 import { PluginAuditLog } from './plugin-audit-log'
-import { executePluginHostCallRequest } from './plugin-host-call-adapter'
 import { PluginContentVerifier } from './plugin-content-integrity'
-import { bindPluginHostServices, type PluginRuntimeDelegate } from './plugin-host-service-bindings'
+import type { PluginRuntimeDelegate } from './plugin-host-service-bindings'
 import { PluginPanelController } from './plugin-panel-controller'
 import { PluginWorkerController } from './plugin-worker-controller'
 import { PluginServiceHousekeeping } from './plugin-service-housekeeping'
@@ -40,7 +40,11 @@ export type { PluginLogLine } from './plugin-log-buffer'
 export type { PluginServiceOptions } from './plugin-service-options'
 
 export class PluginService {
-  readonly options: PluginServiceOptions
+  readonly reviews = createPluginReviewSessions(
+    (key) =>
+      this.getGrantedCapabilities(key)?.includes('diffs:open') ? this.findValidPlugin(key) : null,
+    (key, command, args) => this.invokeCommand(key, command, args)
+  )
   private readonly registry = createPluginExtensionRegistry()
   private readonly eventBus = new PluginEventBus()
   private readonly audit: PluginAuditLog
@@ -61,8 +65,7 @@ export class PluginService {
     notifyChanged: () => this.notifyChanged(false)
   })
 
-  constructor(options: PluginServiceOptions) {
-    this.options = options
+  constructor(readonly options: PluginServiceOptions) {
     this.contentPacks = new PluginContentPackRegistry(this.contentVerifier, (pluginKey) =>
       Boolean(this.options.getPluginKillListEntry?.(pluginKey))
     )
@@ -73,8 +76,9 @@ export class PluginService {
         return plugin && this.canStartPluginWork(plugin) ? plugin : null
       },
       contentVerifier: this.contentVerifier,
-      executeHostCall: (pluginKey, method, params) =>
-        this.executeHostCall(pluginKey, method, params, { viaPanel: true }),
+      executeHostCall: (pluginKey, method, params, ownerKey) =>
+        this.executeHostCall(pluginKey, method, params, { viaPanel: true, ownerKey }),
+      onRevokeOwner: (ownerKey) => this.reviews.revokeOwner(ownerKey),
       log: (pluginKey) => this.installed.captureLog(pluginKey, 'error')
     })
     this.workerController = new PluginWorkerController({
@@ -148,6 +152,7 @@ export class PluginService {
     this.contentVerifier.clear()
     if (!enabled) {
       this.panels.revokeAll()
+      this.reviews.clear()
     }
     const next = enabled
       ? await discoverPlugins({
@@ -248,23 +253,16 @@ export class PluginService {
     pluginKey: string,
     method: string,
     params: unknown,
-    options: { viaPanel: boolean }
+    options: { viaPanel: boolean; ownerKey?: string }
   ): Promise<PluginPanelActionOutcome> {
-    return executePluginHostCallRequest({
-      pluginKey,
-      request: { method, params },
-      viaPanel: options.viaPanel,
-      resolvePolicy: (boundPluginKey) => ({
-        grantedCapabilities: this.getGrantedCapabilities(boundPluginKey),
-        services: this.runtimeDelegate
-          ? bindPluginHostServices({
-              delegate: this.runtimeDelegate,
-              pluginsDataDir: getPluginsDataDir(this.options.userDataPath),
-              subscribeEvents: (key, events) => this.eventBus.subscribe(key, events)
-            })
-          : null,
-        audit: this.audit
-      })
+    return executeServiceHostCall(pluginKey, method, params, options, {
+      delegate: this.runtimeDelegate,
+      pluginsDataDir: getPluginsDataDir(this.options.userDataPath),
+      eventBus: this.eventBus,
+      capabilities: (key) => this.getGrantedCapabilities(key),
+      invoke: (key, command, args) => this.invokeCommand(key, command, args),
+      reviews: this.reviews,
+      audit: this.audit
     })
   }
 
@@ -334,6 +332,7 @@ export class PluginService {
     this.disposed = true
     this.housekeeping.dispose()
     this.panels.dispose()
+    this.reviews.clear()
     await this.refreshChain.catch(() => undefined)
     await this.workerController.dispose()
     await this.audit.flush()
