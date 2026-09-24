@@ -1,3 +1,5 @@
+import { ExternalReviewDialog } from '../external-review/external-review-dialog'
+import type { PluginOpenedReview } from '../../../../shared/plugins/plugin-review-contract'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { isPluginPanelTabKey } from '../../../../shared/plugins/plugin-manifest'
 import {
@@ -46,6 +48,7 @@ function fillPanelShell(html: string): string {
 }
 
 function PluginPanel({ tabKey }: PluginPanelProps): React.JSX.Element {
+  const [openedReview, setOpenedReview] = useState<PluginOpenedReview | null>(null)
   const panels = usePluginPanels()
   const setPanelHealth = usePluginPanelsStore((state) => state.setPanelHealth)
   const panel = isPluginPanelTabKey(tabKey)
@@ -87,6 +90,7 @@ function PluginPanel({ tabKey }: PluginPanelProps): React.JSX.Element {
     let active = true
     const handler = createPanelBridgeMessageHandler({
       sessionToken,
+      onOpenReview: setOpenedReview,
       getPanelWindow: () => iframeRef.current?.contentWindow ?? null,
       callPanelAction: callPanelActionViaPreload,
       isActive: () => active,
@@ -217,19 +221,28 @@ function PluginPanel({ tabKey }: PluginPanelProps): React.JSX.Element {
   }
 
   return (
-    <iframe
-      key={panelFrameKey}
-      ref={iframeRef}
-      // SECURITY: never add allow-same-origin — the srcdoc frame must stay an
-      // opaque origin so plugin UI cannot reach the app DOM, storage, or IPC.
-      // The srcdoc itself is the host CSP shell wrapped around plugin HTML.
-      sandbox="allow-scripts"
-      name={`${PLUGIN_PANEL_FRAME_NAME_PREFIX}${tabKey}`}
-      srcDoc={panelDocument ?? ''}
-      onLoad={() => setLoadedFrameKey(panelFrameKey)}
-      title={panel.title}
-      className="h-full w-full flex-1 border-0 bg-background"
-    />
+    <>
+      {openedReview && (
+        <ExternalReviewDialog
+          key={openedReview.reviewId}
+          opened={openedReview}
+          onClose={() => setOpenedReview(null)}
+        />
+      )}
+      <iframe
+        key={panelFrameKey}
+        ref={iframeRef}
+        // SECURITY: never add allow-same-origin — the srcdoc frame must stay an
+        // opaque origin so plugin UI cannot reach the app DOM, storage, or IPC.
+        // The srcdoc itself is the host CSP shell wrapped around plugin HTML.
+        sandbox="allow-scripts"
+        name={`${PLUGIN_PANEL_FRAME_NAME_PREFIX}${tabKey}`}
+        srcDoc={panelDocument ?? ''}
+        onLoad={() => setLoadedFrameKey(panelFrameKey)}
+        title={panel.title}
+        className="h-full w-full flex-1 border-0 bg-background"
+      />
+    </>
   )
 }
 

@@ -328,3 +328,46 @@ describe('createPanelBridgeMessageHandler', () => {
     expect(onPong).not.toHaveBeenCalled()
   })
 })
+
+describe('native plugin review handoff', () => {
+  it('keeps snapshot files and provider context in the host and returns only a handle and revision', async () => {
+    const panelWindow = createFakePanelWindow()
+    const onOpenReview = vi.fn()
+    const opened = {
+      reviewId: '624f6be0-703d-47c1-8afb-2f0116ca4bba',
+      review: {
+        title: 'PR',
+        revision: 'sha',
+        context: { private: true },
+        files: [{ path: 'hello.ts', status: 'modified', additions: 1, deletions: 1 }]
+      }
+    }
+    const handler = createPanelBridgeMessageHandler({
+      sessionToken: SESSION_TOKEN,
+      getPanelWindow: () => panelWindow,
+      onOpenReview,
+      callPanelAction: async () => ({ ok: true, value: opened })
+    })
+    handler(
+      messageEvent(
+        {
+          ...VALID_DATA,
+          action: 'diffs.openReview',
+          params: { commandId: 'snapshot', contentCommandId: 'file' }
+        },
+        panelWindow
+      )
+    )
+    await flush()
+    expect(onOpenReview).toHaveBeenCalledWith(opened)
+    expect(panelWindow.postMessage).toHaveBeenCalledWith(
+      {
+        type: 'orca-panel-action-result',
+        requestId: 'req-1',
+        ok: true,
+        value: { reviewId: opened.reviewId, revision: 'sha' }
+      },
+      '*'
+    )
+  })
+})
