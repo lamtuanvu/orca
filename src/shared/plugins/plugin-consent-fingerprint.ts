@@ -3,7 +3,12 @@ import { canonicalizeCapabilitySet } from './plugin-capabilities'
 import type { PluginManifest } from './plugin-manifest'
 
 type PluginConsentSubject = Pick<PluginManifest, 'capabilities' | 'main'> & {
-  contributes?: Partial<Pick<PluginManifest['contributes'], 'keybindings' | 'vmRecipes' | 'agents'>>
+  contributes?: Partial<
+    Pick<
+      PluginManifest['contributes'],
+      'keybindings' | 'vmRecipes' | 'agents' | 'commands' | 'reviewProviders'
+    >
+  >
 }
 
 export function hasInstructionalPluginContributions(manifest: PluginConsentSubject): boolean {
@@ -32,7 +37,22 @@ export function canonicalizePluginConsent(
   const instructionalIdentity = hasInstructionalPluginContributions(manifest)
     ? `\0instructional-content:${contentIdentity ?? 'unresolved'}`
     : ''
-  return `${capabilities}${workerIdentity}${instructionalIdentity}`
+  const panelCommands = (manifest.contributes?.commands ?? [])
+    .filter((command) => command.panel)
+    .map(({ id, panel }) => ({ id, panel }))
+    .sort((a, b) => a.id.localeCompare(b.id))
+  const reviewProviders = [...(manifest.contributes?.reviewProviders ?? [])].sort((a, b) =>
+    a.id.localeCompare(b.id)
+  )
+  const panelAuthority =
+    panelCommands.length || reviewProviders.length
+      ? `\0panel-authority:${JSON.stringify({ panelCommands, reviewProviders }, (_key, value) =>
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+            : value
+        )}`
+      : ''
+  return `${capabilities}${workerIdentity}${instructionalIdentity}${panelAuthority}`
 }
 
 export function fingerprintPluginConsent(

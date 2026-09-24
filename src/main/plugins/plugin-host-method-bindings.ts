@@ -1,7 +1,11 @@
 import {
+  pluginCreateAuthorizationSchema,
+  pluginAuthorizationHandleSchema,
+  type PluginCreateAuthorization
+} from '../../shared/plugins/plugin-browser-contract'
+import {
   pluginOwnCommandSchema,
   pluginOpenReviewSchema,
-  pluginOpenExternalSchema,
   type PluginOpenedReview,
   type PluginOpenReviewInput
 } from '../../shared/plugins/plugin-review-contract'
@@ -26,7 +30,12 @@ export type PluginWorktreeContext = {
 export type PluginHostServices = {
   invokeOwnCommand?(pluginId: string, commandId: string, args: unknown): Promise<unknown>
   openReview?(pluginId: string, input: PluginOpenReviewInput): Promise<PluginOpenedReview>
-  openExternal?(pluginId: string, url: string): Promise<{ opened: true }>
+  createAuthorization?(
+    pluginId: string,
+    input: PluginCreateAuthorization
+  ): { attemptId: string; expiresAt: number }
+  openAuthorization?(pluginId: string, attemptId: string): Promise<{ opened: boolean }>
+  cancelAuthorization?(pluginId: string, attemptId: string): { ok: true }
   resolveActiveWorktreeContext(): Promise<PluginWorktreeContext | null>
   listWorktreeTerminals(worktreeId: string): Promise<{ id: string }[]>
   sendTerminalText(
@@ -92,12 +101,29 @@ const HANDLERS = new Map<string, BoundPluginHostMethod>([
     }
     return services.openReview(pluginId, pluginOpenReviewSchema.parse(params))
   }),
-  definePluginMethod('browser.openExternal', async (params, { pluginId, services }) => {
-    if (!services.openExternal) {
-      throw new Error('Opening the browser is unavailable in this host')
+  definePluginMethod('browser.createAuthorization', async (params, { pluginId, services }) => {
+    if (!services.createAuthorization) {
+      throw new Error('Browser authorization unavailable')
     }
-    const { url } = pluginOpenExternalSchema.parse(params)
-    return services.openExternal(pluginId, url)
+    return services.createAuthorization(pluginId, pluginCreateAuthorizationSchema.parse(params))
+  }),
+  definePluginMethod('browser.openAuthorization', async (params, { pluginId, services }) => {
+    if (!services.openAuthorization) {
+      throw new Error('Browser authorization unavailable')
+    }
+    return services.openAuthorization(
+      pluginId,
+      pluginAuthorizationHandleSchema.parse(params).attemptId
+    )
+  }),
+  definePluginMethod('browser.cancelAuthorization', async (params, { pluginId, services }) => {
+    if (!services.cancelAuthorization) {
+      throw new Error('Browser authorization unavailable')
+    }
+    return services.cancelAuthorization(
+      pluginId,
+      pluginAuthorizationHandleSchema.parse(params).attemptId
+    )
   }),
   definePluginMethod('workspace.readContext', async (_params, { services }) => {
     const context = await services.resolveActiveWorktreeContext()

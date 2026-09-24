@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import {
   pluginReviewSchema,
+  pluginOpenReviewSchema,
   pluginReviewContentsSchema,
   type PluginReview,
   type PluginOpenReviewInput,
@@ -18,7 +19,15 @@ type Session = {
 }
 type Services = {
   generation(plugin: string): string | null
-  assertCommand(plugin: string, command: string): void
+  resolveProvider(
+    plugin: string,
+    provider: string,
+    args: unknown
+  ): {
+    snapshotCommand: string
+    contentCommand: string
+    args: unknown
+  }
   invoke(plugin: string, command: string, args: unknown): Promise<unknown>
 }
 
@@ -36,12 +45,12 @@ export class PluginReviewSessions {
     if (!generation) {
       throw new Error('Review unavailable')
     }
-    this.services.assertCommand(plugin, input.commandId)
-    this.services.assertCommand(plugin, input.contentCommandId)
+    const request = pluginOpenReviewSchema.parse(input)
+    const provider = this.services.resolveProvider(plugin, request.providerId, request.args)
     const epoch = this.owners.get(owner) ?? 0
     this.owners.set(owner, epoch)
     const review = pluginReviewSchema.parse(
-      await this.services.invoke(plugin, input.commandId, input.args)
+      await this.services.invoke(plugin, provider.snapshotCommand, provider.args)
     )
     if (
       epoch !== (this.owners.get(owner) ?? 0) ||
@@ -58,7 +67,7 @@ export class PluginReviewSessions {
       plugin,
       generation,
       review,
-      command: input.contentCommandId,
+      command: provider.contentCommand,
       pending: 0
     })
     return { reviewId, review }

@@ -1,11 +1,16 @@
+import {
+  pluginCreateAuthorizationSchema,
+  pluginAuthorizationHandleSchema,
+  pluginCreatedAuthorizationSchema,
+  pluginOpenedAuthorizationSchema,
+  pluginCanceledAuthorizationSchema
+} from './plugin-browser-contract'
 import { z } from 'zod'
 import {
   pluginOwnCommandSchema,
   pluginOpenReviewSchema,
   pluginCommandResultSchema,
-  pluginOpenedReviewSchema,
-  pluginOpenExternalSchema,
-  pluginOpenExternalResultSchema
+  pluginOpenedReviewSchema
 } from './plugin-review-contract'
 import { PLUGIN_EVENT_NAMES } from './plugin-manifest'
 import type { PluginCapabilityKind } from './plugin-capabilities'
@@ -149,15 +154,34 @@ export const PLUGIN_HOST_API_V0: readonly PluginHostMethodSpec[] = [
     result: pluginOpenedReviewSchema
   }),
   spec({
-    name: 'browser.openExternal',
-    since: '1.1',
+    name: 'browser.createAuthorization',
+    since: '1.2',
     scope: 'desktop',
-    capability: 'browser:open-external',
+    capability: 'browser:authorize',
     mutation: true,
-    // Worker-only: the worker resolves and validates the URL; panels stay unable to navigate.
     panel: false,
-    params: pluginOpenExternalSchema,
-    result: pluginOpenExternalResultSchema
+    params: pluginCreateAuthorizationSchema,
+    result: pluginCreatedAuthorizationSchema
+  }),
+  spec({
+    name: 'browser.openAuthorization',
+    since: '1.2',
+    scope: 'desktop',
+    capability: 'browser:authorize',
+    mutation: true,
+    panel: false,
+    params: pluginAuthorizationHandleSchema,
+    result: pluginOpenedAuthorizationSchema
+  }),
+  spec({
+    name: 'browser.cancelAuthorization',
+    since: '1.2',
+    scope: 'desktop',
+    capability: 'browser:authorize',
+    mutation: true,
+    panel: false,
+    params: pluginAuthorizationHandleSchema,
+    result: pluginCanceledAuthorizationSchema
   }),
   spec({
     name: 'workspace.readContext',

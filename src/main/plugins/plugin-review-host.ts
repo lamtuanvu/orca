@@ -1,3 +1,5 @@
+import type { PluginBrowserAuthorizations } from './plugin-browser-authorization'
+import { compilePluginDataSchema } from '../../shared/plugins/plugin-data-schema'
 import type { ValidDiscoveredPlugin } from './plugin-discovery'
 import { assertPluginWorkerCommand } from './plugin-command-invocation'
 import { PluginReviewSessions } from './plugin-review-sessions'
@@ -17,12 +19,22 @@ export function createPluginReviewSessions(
       const entry = plugin(key)
       return entry ? JSON.stringify([entry.rootDir, entry.manifest]) : null
     },
-    assertCommand: (key, command) => {
+    resolveProvider: (key, id, args) => {
       const entry = plugin(key)
       if (!entry) {
         throw new Error('Plugin unavailable')
       }
-      assertPluginWorkerCommand(entry, command)
+      const provider = entry.manifest.contributes.reviewProviders?.find((value) => value.id === id)
+      if (!provider) {
+        throw new Error('Unknown review provider')
+      }
+      for (const command of [provider.snapshotCommand, provider.contentCommand]) {
+        assertPluginWorkerCommand(entry, command)
+        if (entry.manifest.contributes.commands.find((value) => value.id === command)?.panel) {
+          throw new Error('Review loaders cannot be exposed to panels')
+        }
+      }
+      return { ...provider, args: compilePluginDataSchema(provider.input).parse(args) }
     },
     invoke
   })
@@ -33,7 +45,8 @@ type Services = {
   pluginsDataDir: string
   eventBus: PluginEventBus
   capabilities(key: string): PluginCapabilityKind[] | null
-  invoke: Invoke
+  panelInvoke: Invoke
+  browser: PluginBrowserAuthorizations
   reviews: PluginReviewSessions
   audit: PluginHostCallPolicy['audit']
 }
@@ -59,19 +72,20 @@ export function executeServiceHostCall(
               pluginsDataDir: input.pluginsDataDir,
               subscribeEvents: (key, events) => input.eventBus.subscribe(key, events)
             }),
-            invokeOwnCommand: options.viaPanel ? input.invoke : undefined,
+            invokeOwnCommand: options.viaPanel ? input.panelInvoke : undefined,
             openReview:
               options.viaPanel && owner?.startsWith('renderer:')
                 ? (key, args) => input.reviews.open(owner, key, args)
                 : undefined,
-            // Workers only. The URL was validated by the method's params schema.
-            openExternal: options.viaPanel
+            createAuthorization: options.viaPanel
               ? undefined
-              : async (_key, url) => {
-                  const { shell } = await import('electron')
-                  await shell.openExternal(url)
-                  return { opened: true as const }
-                }
+              : (key, args) => input.browser.create(key, args),
+            openAuthorization: options.viaPanel
+              ? undefined
+              : (key, id) => input.browser.open(key, id),
+            cancelAuthorization: options.viaPanel
+              ? undefined
+              : (key, id) => input.browser.cancel(key, id)
           }
         : null
     })
