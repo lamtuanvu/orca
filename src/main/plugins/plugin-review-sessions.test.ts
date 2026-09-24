@@ -23,7 +23,11 @@ function fixture() {
             modified: { kind: 'text', content: 'new\n' }
           }
     },
-    assertCommand: () => undefined
+    resolveProvider: (_p, _id, args) => ({
+      snapshotCommand: 'snapshot',
+      contentCommand: 'content',
+      args
+    })
   })
   return {
     sessions,
@@ -36,7 +40,7 @@ function fixture() {
     }
   }
 }
-const params = { commandId: 'snapshot', contentCommandId: 'content', args: { number: 7 } }
+const params = { providerId: 'pull-request', args: { number: 7 } }
 
 describe('plugin external reviews', () => {
   it('admits own commands and external review opening through explicit capabilities', () => {
@@ -76,7 +80,11 @@ describe('plugin external reviews', () => {
     let finish: (value: unknown) => void = () => undefined
     const sessions = new PluginReviewSessions({
       generation: () => 'one',
-      assertCommand: () => undefined,
+      resolveProvider: (_p, _id, args) => ({
+        snapshotCommand: 'snapshot',
+        contentCommand: 'content',
+        args
+      }),
       invoke: () =>
         new Promise((resolve) => {
           finish = resolve
@@ -90,7 +98,11 @@ describe('plugin external reviews', () => {
   it('rejects oversized content instead of interpreting it as an empty side', async () => {
     const sessions = new PluginReviewSessions({
       generation: () => 'one',
-      assertCommand: () => undefined,
+      resolveProvider: (_p, _id, args) => ({
+        snapshotCommand: 'snapshot',
+        contentCommand: 'content',
+        args
+      }),
       invoke: async (_p, command) =>
         command === 'snapshot'
           ? review
@@ -108,7 +120,11 @@ it('does not resurrect a pending review after all sessions are cleared', async (
   let finish: (value: unknown) => void = () => undefined
   const sessions = new PluginReviewSessions({
     generation: () => 'one',
-    assertCommand: () => undefined,
+    resolveProvider: (_p, _id, args) => ({
+      snapshotCommand: 'snapshot',
+      contentCommand: 'content',
+      args
+    }),
     invoke: () =>
       new Promise((resolve) => {
         finish = resolve

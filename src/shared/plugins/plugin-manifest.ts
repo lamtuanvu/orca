@@ -1,3 +1,4 @@
+import { pluginPanelCommandSchema, pluginReviewProviderSchema } from './plugin-panel-contributions'
 import { z } from 'zod'
 import { pluginCapabilitySchema } from './plugin-capabilities'
 import {
@@ -55,7 +56,8 @@ const commandContributionSchema = z.object({
   title: z.string().min(1).max(256),
   context: z.enum(['global', 'worktree']).optional(),
   /** Built-in action aliases remain declarative and do not activate a worker. */
-  action: pluginCommandIdSchema.optional()
+  action: pluginCommandIdSchema.optional(),
+  panel: pluginPanelCommandSchema.optional()
 })
 
 /** Domain events a plugin can subscribe to in v0. Closed set: server-side
@@ -98,6 +100,7 @@ export const pluginManifestSchema = z
       .object({
         panels: z.array(panelContributionSchema).max(PLUGIN_PANEL_LIMIT).default([]),
         commands: z.array(commandContributionSchema).max(PLUGIN_COMMAND_LIMIT).default([]),
+        reviewProviders: z.array(pluginReviewProviderSchema).max(32).optional(),
         events: z.array(eventContributionSchema).max(PLUGIN_EVENT_SUBSCRIPTION_LIMIT).default([]),
         languagePacks: z
           .array(pluginLanguagePackContributionSchema)

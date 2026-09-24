@@ -1,4 +1,5 @@
-import { createPluginReviewSessions, executeServiceHostCall } from './plugin-review-host'
+import { executeServiceHostCall } from './plugin-review-host'
+import { createPluginReviewIntegration } from './plugin-review-integration'
 import type { PluginEventName } from '../../shared/plugins/plugin-manifest'
 import {
   capabilityKinds,
@@ -40,11 +41,11 @@ export type { PluginLogLine } from './plugin-log-buffer'
 export type { PluginServiceOptions } from './plugin-service-options'
 
 export class PluginService {
-  readonly reviews = createPluginReviewSessions(
-    (key) =>
-      this.getGrantedCapabilities(key)?.includes('diffs:open') ? this.findValidPlugin(key) : null,
+  private readonly reviewIntegration = createPluginReviewIntegration(
+    (key) => this.approvedPlugin(key),
     (key, command, args) => this.invokeCommand(key, command, args)
   )
+  readonly reviews = this.reviewIntegration.reviews
   private readonly registry = createPluginExtensionRegistry()
   private readonly eventBus = new PluginEventBus()
   private readonly audit: PluginAuditLog
@@ -71,10 +72,7 @@ export class PluginService {
     )
     this.audit = new PluginAuditLog(getPluginsDataDir(options.userDataPath))
     this.panels = new PluginPanelController({
-      resolveApprovedPlugin: (pluginKey) => {
-        const plugin = this.findValidPlugin(pluginKey)
-        return plugin && this.canStartPluginWork(plugin) ? plugin : null
-      },
+      resolveApprovedPlugin: (key) => this.approvedPlugin(key),
       contentVerifier: this.contentVerifier,
       executeHostCall: (pluginKey, method, params, ownerKey) =>
         this.executeHostCall(pluginKey, method, params, { viaPanel: true, ownerKey }),
@@ -149,10 +147,10 @@ export class PluginService {
       return
     }
     this.contentPacksReady = false
+    this.reviewIntegration.clear()
     this.contentVerifier.clear()
     if (!enabled) {
       this.panels.revokeAll()
-      this.reviews.clear()
     }
     const next = enabled
       ? await discoverPlugins({
@@ -203,13 +201,18 @@ export class PluginService {
   activationState(plugin: ValidDiscoveredPlugin): ReturnType<typeof getPluginActivationState> {
     // The feature flag is an authority boundary, not only a discovery hint:
     // callers fail closed immediately even before async reconciliation ends.
-    if (!this.options.isPluginSystemEnabled()) {
+    if (this.disposed || !this.options.isPluginSystemEnabled()) {
       return 'disabled'
     }
     return getPluginActivationState(plugin.pluginKey, plugin.consentFingerprint, {
       pluginConsents: this.options.getPluginConsents(),
       disabledPlugins: this.options.getDisabledPlugins()
     })
+  }
+
+  private approvedPlugin(key: string): ValidDiscoveredPlugin | null {
+    const plugin = this.findValidPlugin(key)
+    return plugin && this.canStartPluginWork(plugin) ? plugin : null
   }
 
   private canStartPluginWork(plugin: ValidDiscoveredPlugin): boolean {
@@ -242,9 +245,9 @@ export class PluginService {
    *  callers deny uniformly (no probe-able distinction). */
   getGrantedCapabilities(pluginKey: string): PluginCapabilityKind[] | null {
     const plugin = this.findValidPlugin(pluginKey)
-    return plugin && this.isRuntimeApproved(plugin)
-      ? capabilityKinds(plugin.manifest.capabilities)
-      : null
+    // Existing workers retain cleanup capabilities while removal blocks new work.
+    const approved = plugin && this.isRuntimeApproved(plugin)
+    return approved ? capabilityKinds(plugin.manifest.capabilities) : null
   }
 
   /** Host API chokepoint for both transports (worker fork IPC + panel
@@ -260,8 +263,7 @@ export class PluginService {
       pluginsDataDir: getPluginsDataDir(this.options.userDataPath),
       eventBus: this.eventBus,
       capabilities: (key) => this.getGrantedCapabilities(key),
-      invoke: (key, command, args) => this.invokeCommand(key, command, args),
-      reviews: this.reviews,
+      ...this.reviewIntegration,
       audit: this.audit
     })
   }
@@ -314,6 +316,7 @@ export class PluginService {
   }
 
   private async performActivationStateReconciliation(): Promise<void> {
+    this.reviewIntegration.clear()
     this.contentPacksReady = false
     await this.contentPacks.reconcile(
       this.installed.discovered,
@@ -332,7 +335,7 @@ export class PluginService {
     this.disposed = true
     this.housekeeping.dispose()
     this.panels.dispose()
-    this.reviews.clear()
+    this.reviewIntegration.clear()
     await this.refreshChain.catch(() => undefined)
     await this.workerController.dispose()
     await this.audit.flush()

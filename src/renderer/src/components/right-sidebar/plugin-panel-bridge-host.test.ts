@@ -353,7 +353,7 @@ describe('native plugin review handoff', () => {
         {
           ...VALID_DATA,
           action: 'diffs.openReview',
-          params: { commandId: 'snapshot', contentCommandId: 'file' }
+          params: { providerId: 'pull-request', args: {} }
         },
         panelWindow
       )
