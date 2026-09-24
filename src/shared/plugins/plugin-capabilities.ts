@@ -15,7 +15,7 @@ import { z } from 'zod'
 export const PLUGIN_CAPABILITY_KINDS = [
   'commands:invoke-own',
   'diffs:open',
-  'browser:open-external',
+  'browser:authorize',
   'workspace:read',
   'terminal:send',
   'notifications:show',
@@ -38,8 +38,8 @@ export type PluginCapability = z.infer<typeof pluginCapabilitySchema>
 export const PLUGIN_CAPABILITY_DESCRIPTIONS: Record<PluginCapabilityKind, string> = {
   'commands:invoke-own': 'Run this plugin’s own commands from its panel',
   'diffs:open': 'Open read-only native reviews supplied by this plugin',
-  'browser:open-external':
-    'Open web pages in your default browser (HTTPS, or a local development server)',
+  'browser:authorize':
+    'Request browser sign-in after confirmation in Orca (HTTPS, or loopback development)',
   'workspace:read': 'Read the name, branch, and terminal list of your focused worktree',
   'terminal:send': 'Type text into a terminal you can see (always a specific terminal)',
   'notifications:show': 'Show desktop notifications labeled with the plugin name',
