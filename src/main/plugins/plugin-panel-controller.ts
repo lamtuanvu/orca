@@ -23,8 +23,10 @@ type PluginPanelControllerOptions = {
   executeHostCall: (
     pluginKey: string,
     method: string,
-    params: unknown
+    params: unknown,
+    ownerKey?: string
   ) => Promise<PluginPanelActionOutcome>
+  onRevokeOwner?: (ownerKey: string) => void
   log: (pluginKey: string) => (line: string) => void
   panelAdmission?: PluginPanelCallAdmission
 }
@@ -91,11 +93,19 @@ export class PluginPanelController {
     ) {
       return { ok: false, code: 'unavailable', error: 'panel session is no longer available' }
     }
-    return this.options.executeHostCall(binding.pluginKey, parsed.data.action, parsed.data.params)
+    return parsed.data.action === 'diffs.openReview'
+      ? this.options.executeHostCall(
+          binding.pluginKey,
+          parsed.data.action,
+          parsed.data.params,
+          ownerKey
+        )
+      : this.options.executeHostCall(binding.pluginKey, parsed.data.action, parsed.data.params)
   }
 
   revokeOwner(ownerKey: string): void {
     this.sessions.revokeOwner(ownerKey)
+    this.options.onRevokeOwner?.(ownerKey)
   }
 
   bindOwnerSignal(ownerKey: string, signal: AbortSignal | undefined): void {

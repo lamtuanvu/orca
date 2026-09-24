@@ -39,6 +39,7 @@ export default function DiffViewer({
   relativePath,
   sideBySide,
   editable,
+  keepModels = true,
   worktreeId,
   onAddLineComment,
   commentableLineNumbers,
@@ -255,12 +256,20 @@ export default function DiffViewer({
       const de = diffEditorRef.current
       if (de) {
         const currentViewState = de.saveViewState()
-        if (currentViewState) {
+        if (currentViewState && keepModels) {
           setWithLRU(diffViewStateCache, modelKey, currentViewState)
+        }
+        if (!keepModels) {
+          // Detach before disposing: Monaco's diff widget still observes both
+          // models until reset, and the React wrapper otherwise disposes first.
+          const models = de.getModel()
+          de.setModel(null)
+          models?.original.dispose()
+          models?.modified.dispose()
         }
       }
     }
-  }, [modelKey])
+  }, [modelKey, keepModels])
 
   useEffect(() => {
     const diffEditor = diffEditorRef.current
@@ -300,8 +309,8 @@ export default function DiffViewer({
             // Why: key models by tab identity and preserve the modified undo stack across Changes-mode HEAD rotations.
             originalModelPath={currentDiffModelPaths.originalModelPath}
             modifiedModelPath={currentDiffModelPaths.modifiedModelPath}
-            keepCurrentOriginalModel
-            keepCurrentModifiedModel
+            keepCurrentOriginalModel={keepModels}
+            keepCurrentModifiedModel={keepModels}
             options={{
               readOnly: !editable,
               originalEditable: false,

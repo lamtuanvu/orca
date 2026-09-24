@@ -27,6 +27,12 @@ type HostCallAdapter = (request: unknown, viaPanel: boolean) => Promise<PluginPa
 
 function createServices(): PluginHostServices {
   return {
+    invokeOwnCommand: async () => ({ pong: true }),
+    openExternal: async () => ({ opened: true }),
+    openReview: async () => ({
+      reviewId: '00000000-0000-4000-8000-000000000001',
+      review: { title: 'Review', revision: 'one', context: null, files: [] }
+    }),
     resolveActiveWorktreeContext: vi.fn().mockResolvedValue({
       worktreeId: WORKTREE_ID,
       branch: 'main',
@@ -105,6 +111,9 @@ function createAdapters(
 }
 
 const successParams: Record<string, unknown> = {
+  'commands.invokeOwn': { commandId: 'ping' },
+  'diffs.openReview': { commandId: 'snapshot', contentCommandId: 'file' },
+  'browser.openExternal': { url: 'https://hub.example/device?code=WDJB-MJHT' },
   'workspace.readContext': {},
   'terminal.sendText': { terminalId: TERMINAL_ID, text: 'echo hi', enter: true },
   'notifications.show': { title: 'Hello' },
@@ -121,8 +130,7 @@ const successParams: Record<string, unknown> = {
 }
 
 describe('plugin host main/relay conformance', () => {
-  it('runs a granted success through both transports for all 13 v0 methods', async () => {
-    expect(PLUGIN_HOST_API_V0).toHaveLength(13)
+  it('runs a granted success through both transports for every public method', async () => {
     expect(Object.keys(successParams).sort()).toEqual(
       PLUGIN_HOST_API_V0.map((entry) => entry.name).sort()
     )

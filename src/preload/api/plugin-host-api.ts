@@ -1,3 +1,4 @@
+import type { PluginReviewContents } from '../../shared/plugins/plugin-review-contract'
 import type {
   PluginPanelActionOutcome,
   PluginPanelEntry
@@ -141,6 +142,8 @@ export type PluginMarketplaceHostInstallPreview = {
 }
 
 export type PluginsApi = {
+  readReviewFile?: (args: { reviewId: string; index: number }) => Promise<PluginReviewContents>
+  closeReview?: (args: { reviewId: string }) => Promise<void>
   list: () => Promise<PluginHostListEntry[]>
   listLanguagePacks: () => Promise<PluginLanguagePackRegistration[]>
   /** Records the consent-dialog answer; approval is keyed to the plugin's

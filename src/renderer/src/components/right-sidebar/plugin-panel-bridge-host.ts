@@ -1,4 +1,8 @@
 import {
+  pluginOpenedReviewSchema,
+  type PluginOpenedReview
+} from '../../../../shared/plugins/plugin-review-contract'
+import {
   PANEL_ACTION_RESULT_TYPE,
   PANEL_CONTROL_MESSAGE_MAX_BYTES,
   looksLikePanelActionRequest,
@@ -33,6 +37,7 @@ export type PanelActionCall = {
 
 export type PanelBridgeHostOptions = {
   sessionToken: string
+  onOpenReview?: (review: PluginOpenedReview) => void
   /** The mounted panel iframe's contentWindow, or null when unmounted. */
   getPanelWindow: () => Window | null
   callPanelAction: (call: PanelActionCall) => Promise<PluginPanelActionOutcome>
@@ -158,6 +163,25 @@ export function createPanelBridgeMessageHandler(
     options
       .callPanelAction({ sessionToken: options.sessionToken, action, params })
       .then((outcome) => {
+        if (outcome.ok && action === 'diffs.openReview') {
+          const opened = pluginOpenedReviewSchema.parse(outcome.value)
+          if (
+            options.isActive?.() === false ||
+            options.getPanelWindow() !== requestingWindow ||
+            !options.onOpenReview
+          ) {
+            void window.api?.plugins?.closeReview?.({ reviewId: opened.reviewId })
+            return
+          }
+          options.onOpenReview(opened)
+          respond({
+            type: PANEL_ACTION_RESULT_TYPE,
+            requestId,
+            ok: true,
+            value: { reviewId: opened.reviewId, revision: opened.review.revision }
+          })
+          return
+        }
         respond(
           outcome.ok
             ? { type: PANEL_ACTION_RESULT_TYPE, requestId, ok: true, value: outcome.value }

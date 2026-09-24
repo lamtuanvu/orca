@@ -1,4 +1,12 @@
 import { z } from 'zod'
+import {
+  pluginOwnCommandSchema,
+  pluginOpenReviewSchema,
+  pluginCommandResultSchema,
+  pluginOpenedReviewSchema,
+  pluginOpenExternalSchema,
+  pluginOpenExternalResultSchema
+} from './plugin-review-contract'
 import { PLUGIN_EVENT_NAMES } from './plugin-manifest'
 import type { PluginCapabilityKind } from './plugin-capabilities'
 
@@ -120,6 +128,37 @@ const spec = <P extends z.ZodTypeAny, R extends z.ZodTypeAny>(
 ): PluginHostMethodSpec => ({ ...entry, stability: 'experimental' })
 
 export const PLUGIN_HOST_API_V0: readonly PluginHostMethodSpec[] = [
+  spec({
+    name: 'commands.invokeOwn',
+    since: '1.1',
+    scope: 'plugin-private',
+    capability: 'commands:invoke-own',
+    mutation: true,
+    panel: true,
+    params: pluginOwnCommandSchema,
+    result: pluginCommandResultSchema
+  }),
+  spec({
+    name: 'diffs.openReview',
+    since: '1.1',
+    scope: 'plugin-private',
+    capability: 'diffs:open',
+    mutation: true,
+    panel: true,
+    params: pluginOpenReviewSchema,
+    result: pluginOpenedReviewSchema
+  }),
+  spec({
+    name: 'browser.openExternal',
+    since: '1.1',
+    scope: 'desktop',
+    capability: 'browser:open-external',
+    mutation: true,
+    // Worker-only: the worker resolves and validates the URL; panels stay unable to navigate.
+    panel: false,
+    params: pluginOpenExternalSchema,
+    result: pluginOpenExternalResultSchema
+  }),
   spec({
     name: 'workspace.readContext',
     since: '1.0',
