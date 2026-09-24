@@ -173,6 +173,22 @@ export function registerPluginHandlers(
     }
   )
 
+  ipcMain.handle('plugins:readReviewFile', async (event, args: unknown) => {
+    const input = z
+      .object({ reviewId: z.string().uuid(), index: z.number().int().min(0).max(1999) })
+      .strict()
+      .parse(args)
+    return pluginService.reviews.read(
+      rendererPanelOwner(event.sender.id),
+      input.reviewId,
+      input.index
+    )
+  })
+  ipcMain.handle('plugins:closeReview', (event, args: unknown) => {
+    const input = z.object({ reviewId: z.string().uuid() }).strict().parse(args)
+    pluginService.reviews.close(rendererPanelOwner(event.sender.id), input.reviewId)
+  })
+
   ipcMain.handle('plugins:invokeCommand', async (_event, args: unknown) => {
     await pluginService.whenReady()
     const parsed = invokeCommandArgsSchema.parse(args)
