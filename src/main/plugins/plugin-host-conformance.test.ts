@@ -28,7 +28,12 @@ type HostCallAdapter = (request: unknown, viaPanel: boolean) => Promise<PluginPa
 function createServices(): PluginHostServices {
   return {
     invokeOwnCommand: async () => ({ pong: true }),
-    openExternal: async () => ({ opened: true }),
+    createAuthorization: () => ({
+      attemptId: '00000000-0000-4000-8000-000000000001',
+      expiresAt: 1000
+    }),
+    openAuthorization: async () => ({ opened: true }),
+    cancelAuthorization: () => ({ ok: true }),
     openReview: async () => ({
       reviewId: '00000000-0000-4000-8000-000000000001',
       review: { title: 'Review', revision: 'one', context: null, files: [] }
@@ -112,8 +117,14 @@ function createAdapters(
 
 const successParams: Record<string, unknown> = {
   'commands.invokeOwn': { commandId: 'ping' },
-  'diffs.openReview': { commandId: 'snapshot', contentCommandId: 'file' },
-  'browser.openExternal': { url: 'https://hub.example/device?code=WDJB-MJHT' },
+  'diffs.openReview': { providerId: 'pull-request', args: {} },
+  'browser.createAuthorization': {
+    serverOrigin: 'https://api.example',
+    verificationUrl: 'https://hub.example/device',
+    expiresIn: 30
+  },
+  'browser.openAuthorization': { attemptId: '00000000-0000-4000-8000-000000000001' },
+  'browser.cancelAuthorization': { attemptId: '00000000-0000-4000-8000-000000000001' },
   'workspace.readContext': {},
   'terminal.sendText': { terminalId: TERMINAL_ID, text: 'echo hi', enter: true },
   'notifications.show': { title: 'Hello' },
