@@ -11,6 +11,7 @@ export type DiffViewerProps = {
   relativePath: string
   sideBySide: boolean
   editable?: boolean
+  keepModels?: boolean
   // Why: optional because DiffViewer is also used by GitHubItemDialog for PR
   // review, where there is no local worktree to attach comments to.
   worktreeId?: string

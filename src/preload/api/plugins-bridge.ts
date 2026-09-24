@@ -14,6 +14,9 @@ import type {
 } from '../api-types'
 
 export const pluginsApi = {
+  readReviewFile: (args: { reviewId: string; index: number }) =>
+    ipcRenderer.invoke('plugins:readReviewFile', args),
+  closeReview: (args: { reviewId: string }) => ipcRenderer.invoke('plugins:closeReview', args),
   list: (): Promise<PluginHostListEntry[]> => ipcRenderer.invoke('plugins:list'),
   listLanguagePacks: () => ipcRenderer.invoke('plugins:listLanguagePacks'),
   consent: (args: PluginConsentRequest): Promise<PluginHostListEntry[]> =>
