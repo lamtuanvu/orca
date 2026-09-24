@@ -10,33 +10,10 @@ const boundedJson = (bytes: number) =>
 export const pluginOwnCommandSchema = z
   .object({ commandId: z.string().min(1).max(256), args: boundedJson(48 * 1024).optional() })
   .strict()
-export const pluginOpenReviewSchema = pluginOwnCommandSchema
-  .extend({ contentCommandId: z.string().min(1).max(256) })
+export const pluginOpenReviewSchema = z
+  .object({ providerId: z.string().min(1).max(256), args: boundedJson(48 * 1024) })
   .strict()
 export const pluginCommandResultSchema = boundedJson(48 * 1024)
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
-/** Browser opening is limited to web pages: https, http only for loopback development
- *  servers, and never embedded credentials. Anything else is rejected before main acts. */
-export const pluginOpenExternalSchema = z
-  .object({
-    url: z
-      .string()
-      .max(2048)
-      .refine((value) => {
-        let url: URL
-        try {
-          url = new URL(value)
-        } catch {
-          return false
-        }
-        const scheme =
-          url.protocol === 'https:' ||
-          (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname))
-        return scheme && !url.username && !url.password
-      }, 'only https (or http on localhost) URLs without credentials')
-  })
-  .strict()
-export const pluginOpenExternalResultSchema = z.object({ opened: z.literal(true) }).strict()
 export const pluginReviewFileSchema = z
   .object({
     path: z.string().min(1).max(4096),

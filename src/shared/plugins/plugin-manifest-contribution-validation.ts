@@ -1,3 +1,5 @@
+import { validatePluginPanelContributions } from './plugin-panel-contribution-validation'
+import type { PluginReviewProvider } from './plugin-panel-contributions'
 import type { RefinementCtx } from 'zod'
 import { isPluginCommandAliasActionId } from './plugin-command-actions'
 import { getKeybindingConflictIdentity } from '../keybindings'
@@ -9,7 +11,12 @@ type ContributionValidationManifest = {
   main?: string
   contributes: {
     panels: IdentifiedContribution[]
-    commands: (IdentifiedContribution & { action?: string; context?: 'global' | 'worktree' })[]
+    commands: (IdentifiedContribution & {
+      action?: string
+      panel?: unknown
+      context?: 'global' | 'worktree'
+    })[]
+    reviewProviders?: PluginReviewProvider[]
     events: { on: string }[]
     languagePacks: { locale: string }[]
     keybindings: { command: string; key: string; when?: 'global' | 'worktree' }[]
@@ -44,6 +51,7 @@ export function validatePluginManifestContributions(
   manifest: ContributionValidationManifest,
   ctx: RefinementCtx
 ): void {
+  validatePluginPanelContributions(manifest, ctx)
   for (const path of ['panels', 'commands'] as const) {
     rejectDuplicateValues(
       manifest.contributes[path],
