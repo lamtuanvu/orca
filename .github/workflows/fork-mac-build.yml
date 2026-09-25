@@ -1,0 +1,82 @@
+# Fork-only: unsigned macOS DMGs on demand, attached to the run as artifacts.
+name: Fork macOS build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to build
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-mac-build-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-mac:
+    if: github.repository == 'lamtuanvu/orca'
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      # No signing identity on the fork; skip keychain discovery and build ad-hoc.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/setup@v2
+        with:
+          install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            mobile/pnpm-lock.yaml
+
+      - name: Cache electron-builder downloads
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: electron-builder-mac-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            electron-builder-mac-
+
+      # Both CPUs: the mac config packages x64 and arm64 from this arm64 runner.
+      - name: Install dependencies
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: pnpm install:release
+
+      - uses: ./.github/actions/install-mobile-dependencies
+
+      - name: Build DMGs
+        run: pnpm build:mac
+
+      - name: Upload DMGs
+        uses: actions/upload-artifact@v7
+        with:
+          name: orca-macos-${{ github.run_number }}
+          path: dist/*.dmg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
