@@ -29,8 +29,17 @@ createHelperApp()
 
 function buildUniversalBinary() {
   const builtBinaries = universalTriples.map((triple) => {
-    run('swift', ['build', '-c', 'release', '--package-path', packagePath, '--triple', triple])
-    return path.join(packagePath, '.build', triple, 'release', 'orca-computer-use-macos')
+    // Why a scratch path per triple: SwiftPM's swiftbuild backend (Swift 6.2+) writes every
+    // triple to one shared products dir, so the second build would overwrite the first.
+    const scratchPath = path.join(packagePath, '.build', 'triples', triple)
+    const buildArgs = ['build', '-c', 'release', '--package-path', packagePath]
+    buildArgs.push('--scratch-path', scratchPath, '--triple', triple)
+    run('swift', buildArgs)
+    const binPath = spawnSync('swift', [...buildArgs, '--show-bin-path'], { encoding: 'utf8' })
+    if (binPath.status !== 0) {
+      process.exit(binPath.status ?? 1)
+    }
+    return path.join(binPath.stdout.trim(), 'orca-computer-use-macos')
   })
   mkdirSync(path.dirname(binaryPath), { recursive: true })
   run('lipo', ['-create', ...builtBinaries, '-output', binaryPath])
