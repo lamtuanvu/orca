@@ -142,6 +142,24 @@ describe('diagnoseNodePtyUnavailable', () => {
     expect(formatNodePtyUnavailableMessage(present)).not.toContain('apt-get')
   })
 
+  it('names an absent install dir and claims no toolchain it never probed', () => {
+    const absent = diagnose({
+      survey: { ...NOTHING_INSTALLED, searched: [] },
+      toolchain: toolchain(['python3'])
+    })
+    expect(absent.reason).toBe('toolchain_missing')
+    expect(formatNodePtyUnavailableMessage(absent)).toContain(
+      `node-pty is not installed at ${MODULE_DIR}`
+    )
+
+    // Non-Linux relays skip the toolchain probe, so the remedy must not assert one exists.
+    const unprobed = formatNodePtyUnavailableMessage(
+      diagnose({ survey: { ...NOTHING_INSTALLED, searched: [] }, toolchain: null })
+    )
+    expect(unprobed).toContain('Reconnect to reinstall')
+    expect(unprobed).not.toContain('build tools needed to compile it are present')
+  })
+
   it('reports a binding that killed the probe as a crash rather than a miss', () => {
     const text = message({ probeSignal: 'SIGSEGV' })
     expect(text).toContain('SIGSEGV')

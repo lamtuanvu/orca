@@ -67,6 +67,16 @@ export function surveyNodePtyBinding(
   const searched = bindingSearchDirs(host.platform, host.arch)
   let bindingPath: string | null = null
   try {
+    // An absent install dir is the node-pty-less deploy (no toolchain), not an unreadable one.
+    if (!existsSync(nodePtyDir)) {
+      return {
+        moduleDir: nodePtyDir,
+        bindingPath: null,
+        searched: [],
+        builtNodeAbi: null,
+        builtArch: null
+      }
+    }
     for (const dir of searched) {
       for (const root of [nodePtyDir, join(nodePtyDir, 'lib')]) {
         const candidate = join(root, dir, `${name}.node`)

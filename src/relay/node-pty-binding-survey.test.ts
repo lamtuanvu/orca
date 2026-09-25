@@ -119,6 +119,22 @@ describe('collectNodePtyUnavailableDiagnosis', () => {
     expect(text).toContain(FLATTENED)
   })
 
+  it('diagnoses an absent install dir — the node-pty-less deploy — instead of calling it unverifiable', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'orca-node-pty-'))
+    roots.push(root)
+    const missingDir = join(root, 'node_modules', 'node-pty')
+    const diagnosis = await collectNodePtyUnavailableDiagnosis({
+      nodePtyDir: missingDir,
+      error: new Error(`no node-pty at ${join(missingDir, 'lib', 'index.js')}`)
+    })
+    expect(diagnosis.status).toBe('blocked')
+    expect(['toolchain_missing', 'dependency_missing']).toContain(diagnosis.reason)
+    expect(diagnosis.toolchain === null).toBe(process.platform !== 'linux')
+    expect(formatNodePtyUnavailableMessage(diagnosis)).toContain(
+      `node-pty is not installed at ${missingDir}`
+    )
+  }, 20_000)
+
   it('probes the host toolchain only when nothing was compiled', async () => {
     const diagnosis = await collectNodePtyUnavailableDiagnosis({
       nodePtyDir: fixture(),

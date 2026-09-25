@@ -654,8 +654,11 @@ export class PtyHandler {
    */
   private async nodePtyUnavailableError(spawnError?: unknown): Promise<Error> {
     const nodePtyDir = this.relayNodePtyDir()
+    // An absent dir proves "not installed" only if node-pty never loaded; a spawn error means it
+    // loaded from somewhere we did not look.
+    const dirIsEvidence = spawnError === undefined || existsSync(nodePtyDir)
     const diagnosis = await collectNodePtyUnavailableDiagnosis({
-      nodePtyDir: existsSync(nodePtyDir) ? nodePtyDir : null,
+      nodePtyDir: dirIsEvidence ? nodePtyDir : null,
       error: spawnError ?? this.lastPtyLoadError
     })
     return Object.assign(new Error(formatNodePtyUnavailableMessage(diagnosis)), {

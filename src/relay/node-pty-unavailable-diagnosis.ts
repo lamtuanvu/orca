@@ -35,7 +35,7 @@ export type NodePtyBindingSurvey = {
   moduleDir: string
   /** The compiled binding the loader would open, or null when no directory holds one. */
   bindingPath: string | null
-  /** Directories checked, so "nothing is installed" is a statement with evidence. */
+  /** Directories checked, so "nothing is installed" is a statement with evidence. Empty when `moduleDir` itself is absent. */
   searched: string[]
   /** `node_module_version` from node-gyp's build/config.gypi, when it is readable. */
   builtNodeAbi: string | null
@@ -312,8 +312,8 @@ function remedyFor(diagnosis: NodePtyUnavailableDiagnosis): string {
     case 'dependency_missing':
       return (
         `node-pty has no compiled binary on this host (${searchedPhrase(survey)}). ` +
-        `The C/C++ build tools needed to compile it are present, so reconnect to reinstall ` +
-        `the relay's native modules.`
+        `${toolchain ? 'The C/C++ build tools needed to compile it are present, so reconnect' : 'Reconnect'} ` +
+        `to reinstall the relay's native modules.`
       )
     case 'abi_mismatch':
       return (
@@ -356,7 +356,10 @@ function remedyFor(diagnosis: NodePtyUnavailableDiagnosis): string {
 }
 
 function searchedPhrase(survey: NodePtyBindingSurvey | null): string {
-  return survey && survey.searched.length > 0
+  if (!survey) {
+    return 'nothing was found where node-pty looks'
+  }
+  return survey.searched.length > 0
     ? `checked ${survey.searched.join(', ')} under ${survey.moduleDir}`
-    : 'nothing was found where node-pty looks'
+    : `node-pty is not installed at ${survey.moduleDir}`
 }
