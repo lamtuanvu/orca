@@ -33,7 +33,16 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
   console.log(`[build:mac] local update version ${identity.version}`)
   execFileSync(
     process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
-    ['exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', '--mac'],
+    // Why --publish never: electron-builder auto-publishes when it detects CI, and local builds never ship.
+    [
+      'exec',
+      'electron-builder',
+      '--config',
+      'config/electron-builder.config.cjs',
+      '--mac',
+      '--publish',
+      'never'
+    ],
     {
       env: {
         ...process.env,
