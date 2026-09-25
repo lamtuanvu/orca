@@ -11404,7 +11404,7 @@
           "keepDisabled": "비활성화 유지",
           "enable": "플러그인 활성화",
           "capability": {
-            "workspaceRead": "포커스된 워크트리의 이름, 브랜치 및 터미널 목록 읽기",
+            "workspaceRead": "포커스된 워크트리의 이름, 브랜치, Git 원격 및 터미널 목록 읽기",
             "terminalSend": "보이는 터미널에 텍스트 입력 (항상 특정 터미널)",
             "notificationsShow": "플러그인 이름이 표시된 데스크톱 알림 표시",
             "storage": "플러그인 자체 저장소 폴더에 데이터 저장",

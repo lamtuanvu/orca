@@ -10124,7 +10124,7 @@
           "keepDisabled": "Mantener desactivado",
           "enable": "Activar plugin",
           "capability": {
-            "workspaceRead": "Leer el nombre, la rama y la lista de terminales del worktree seleccionado",
+            "workspaceRead": "Leer el nombre, la rama, los remotos de git y la lista de terminales del worktree seleccionado",
             "terminalSend": "Escribir texto en una terminal visible (siempre en una terminal específica)",
             "notificationsShow": "Mostrar notificaciones de escritorio con el nombre del plugin",
             "storage": "Guardar datos en la carpeta de almacenamiento propia del plugin",

@@ -11404,7 +11404,7 @@
           "keepDisabled": "保持禁用",
           "enable": "启用插件",
           "capability": {
-            "workspaceRead": "读取您聚焦的工作树的名称、分支和终端列表",
+            "workspaceRead": "读取您聚焦的工作树的名称、分支、Git 远程和终端列表",
             "terminalSend": "在您可见的终端中输入文本（始终是特定终端）",
             "notificationsShow": "显示标有插件名称的桌面通知",
             "storage": "在插件自己的存储文件夹中存储数据",
