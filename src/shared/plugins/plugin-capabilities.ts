@@ -40,7 +40,8 @@ export const PLUGIN_CAPABILITY_DESCRIPTIONS: Record<PluginCapabilityKind, string
   'diffs:open': 'Open read-only native reviews supplied by this plugin',
   'browser:authorize':
     'Request browser sign-in after confirmation in Orca (HTTPS, or loopback development)',
-  'workspace:read': 'Read the name, branch, and terminal list of your focused worktree',
+  'workspace:read':
+    'Read the name, branch, git remotes, and terminal list of your focused worktree',
   'terminal:send': 'Type text into a terminal you can see (always a specific terminal)',
   'notifications:show': 'Show desktop notifications labeled with the plugin name',
   storage: "Store data in the plugin's own storage folder",

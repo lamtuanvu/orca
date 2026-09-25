@@ -14,6 +14,13 @@ import {
 } from './plugin-review-contract'
 import { PLUGIN_EVENT_NAMES } from './plugin-manifest'
 import type { PluginCapabilityKind } from './plugin-capabilities'
+import {
+  PLUGIN_TERMINAL_ID_MAX_LENGTH,
+  workspaceReadContextParams,
+  workspaceReadContextResult
+} from './plugin-workspace-context-schema'
+
+export * from './plugin-workspace-context-schema'
 
 /**
  * Host API v0 — the separately-versioned public facade plugins call. Every
@@ -31,30 +38,6 @@ import type { PluginCapabilityKind } from './plugin-capabilities'
  */
 
 export const PANEL_ACTION_TEXT_MAX_LENGTH = 4096
-export const PLUGIN_WORKSPACE_TERMINAL_LIMIT = 50
-export const PLUGIN_WORKSPACE_LABEL_MAX_LENGTH = 512
-export const PLUGIN_TERMINAL_ID_MAX_LENGTH = 1024
-
-const workspaceReadContextParams = z.object({}).strict().optional()
-const workspaceReadContextResult = z
-  .object({
-    branch: z.string().max(PLUGIN_WORKSPACE_LABEL_MAX_LENGTH),
-    displayName: z.string().max(PLUGIN_WORKSPACE_LABEL_MAX_LENGTH),
-    /** Terminals of the focused worktree, so callers can address a specific
-     *  terminal id — the API has no "active terminal" write target. */
-    terminals: z
-      .array(
-        z
-          .object({
-            id: z.string().min(1).max(PLUGIN_TERMINAL_ID_MAX_LENGTH)
-          })
-          .strict()
-      )
-      .max(PLUGIN_WORKSPACE_TERMINAL_LIMIT)
-  })
-  .strict()
-  .nullable()
-
 const terminalSendTextParams = z.object({
   /** Explicit target. Never "the active terminal": a focus change must not
    *  redirect a delayed plugin write into another pane (design-doc rule). */

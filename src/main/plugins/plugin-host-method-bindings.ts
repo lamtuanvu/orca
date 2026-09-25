@@ -14,6 +14,7 @@ import {
   PLUGIN_HOST_API_V0,
   PLUGIN_TERMINAL_ID_MAX_LENGTH,
   PLUGIN_WORKSPACE_LABEL_MAX_LENGTH,
+  PLUGIN_WORKSPACE_REMOTE_LIMIT,
   PLUGIN_WORKSPACE_TERMINAL_LIMIT,
   type PluginHostMethodSpec
 } from '../../shared/plugins/plugin-host-api'
@@ -23,6 +24,8 @@ export type PluginWorktreeContext = {
   worktreeId: string
   branch: string
   displayName: string
+  /** Sanitized fetch remotes of the worktree's repository (no credentials, no local paths). */
+  remotes?: { name: string; url: string }[]
 }
 
 /** Structural service surface the facade delegates to. Desktop main binds it
@@ -136,6 +139,7 @@ const HANDLERS = new Map<string, BoundPluginHostMethod>([
     return {
       branch: context.branch.slice(0, PLUGIN_WORKSPACE_LABEL_MAX_LENGTH),
       displayName: context.displayName.slice(0, PLUGIN_WORKSPACE_LABEL_MAX_LENGTH),
+      remotes: (context.remotes ?? []).slice(0, PLUGIN_WORKSPACE_REMOTE_LIMIT),
       terminals: terminals
         .filter(
           (terminal) =>
