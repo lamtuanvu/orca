@@ -141,7 +141,14 @@ function createTerminalHarness(terminalHandles: string[]): {
     services: bindPluginHostServices({
       delegate,
       pluginsDataDir: join(tmpdir(), 'plugin-host-methods-test'),
-      subscribeEvents: vi.fn().mockReturnValue([])
+      subscribeEvents: vi.fn().mockReturnValue([]),
+      readGitRemotes: vi
+        .fn()
+        .mockResolvedValue(
+          'origin\thttps://ci:secret@hub.example.com/acme/demo.git (fetch)\n' +
+            'origin\thttps://ci:secret@hub.example.com/acme/demo.git (push)\n' +
+            'backup\t/Users/private/backup (fetch)\n'
+        )
     })
   }
 }
@@ -222,7 +229,11 @@ describe('terminal.sendText explicit worktree routing', () => {
 
     expect(outcome).toMatchObject({
       ok: true,
-      value: { branch: 'main', displayName: 'Repo' }
+      value: {
+        branch: 'main',
+        displayName: 'Repo',
+        remotes: [{ name: 'origin', url: 'https://hub.example.com/acme/demo.git' }]
+      }
     })
     expect(outcome).not.toHaveProperty('value.path')
     expect(outcome).not.toHaveProperty('value.worktreeId')

@@ -5,7 +5,7 @@ export function pluginCapabilityDescription(kind: string, fallback: string): str
     case 'workspace:read':
       return translate(
         'auto.components.settings.PluginConsentDialog.capability.workspaceRead',
-        'Read the name, branch, and terminal list of your focused worktree'
+        'Read the name, branch, git remotes, and terminal list of your focused worktree'
       )
     case 'terminal:send':
       return translate(

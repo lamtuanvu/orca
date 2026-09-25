@@ -171,6 +171,7 @@ describe('plugin host main/relay conformance', () => {
         value: {
           branch: 'main',
           displayName: 'Orca',
+          remotes: [],
           terminals: [{ id: TERMINAL_ID }]
         }
       })

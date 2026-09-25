@@ -11557,7 +11557,7 @@
           "keepDisabled": "Keep Disabled",
           "enable": "Enable plugin",
           "capability": {
-            "workspaceRead": "Read the name, branch, and terminal list of your focused worktree",
+            "workspaceRead": "Read the name, branch, git remotes, and terminal list of your focused worktree",
             "terminalSend": "Type text into a terminal you can see (always a specific terminal)",
             "notificationsShow": "Show desktop notifications labeled with the plugin name",
             "storage": "Store data in the plugin's own storage folder",
