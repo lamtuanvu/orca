@@ -1,0 +1,60 @@
+# Fork-only: replays this fork's patch commits (CV Hub plugin) onto upstream main.
+name: Sync fork main with upstream
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'lamtuanvu/orca'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require push token
+        env:
+          FORK_SYNC_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$FORK_SYNC_TOKEN" ]; then
+            echo "::error::Set the FORK_SYNC_TOKEN secret (fine-grained PAT: Contents + Workflows write on this repo)."
+            exit 1
+          fi
+
+      # PAT, not GITHUB_TOKEN: rebased history carries upstream workflow edits, which GITHUB_TOKEN may not push.
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.FORK_SYNC_TOKEN }}
+
+      - name: Rebase fork commits onto upstream main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/stablyai/orca.git
+          git fetch --no-tags upstream main
+
+          old_main=$(git rev-parse HEAD)
+          base=$(git merge-base HEAD upstream/main)
+          if [ "$base" = "$(git rev-parse upstream/main)" ]; then
+            echo "Fork main already contains upstream main."
+            exit 0
+          fi
+
+          echo "Replaying fork commits:"
+          git log --oneline "$base..HEAD"
+          if ! git rebase --onto upstream/main "$base" main; then
+            git rebase --abort
+            echo "::error::Fork patches conflict with upstream main. Rebase locally and push."
+            exit 1
+          fi
+
+          git push --force-with-lease=main:"$old_main" origin HEAD:main
+          echo "Fork main: $old_main -> $(git rev-parse HEAD)"
