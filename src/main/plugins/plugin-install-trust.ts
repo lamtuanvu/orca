@@ -17,8 +17,8 @@ export function pluginInstallTrustError(
   if (!isReservedPluginIdentity(pluginKey)) {
     return null
   }
-  if (source.kind === 'local-path') {
-    return `reserved plugin identity ${pluginKey} cannot be installed from a local path`
+  if (source.kind === 'local-path' || source.kind === 'archive') {
+    return `reserved plugin identity ${pluginKey} cannot be installed from a local folder or zip file`
   }
   const url = source.kind === 'git' ? source.url : source.plugin.url
   return isOfficialOrganizationGitSource(url)

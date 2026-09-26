@@ -7,7 +7,6 @@ import { checkoutPluginGitSource } from './plugin-git-repository'
 import {
   installPluginFromMarketplace,
   readPluginLockfile,
-  rollbackInstalledPlugin,
   type PluginInstallResult
 } from './plugin-install'
 import { inspectPluginInstallTree } from './plugin-install-staging'
@@ -140,15 +139,6 @@ export class PluginMarketplaceInstaller {
       ref: entry.source.marketplace.ref
     })
     return this.preview(sourceId, pluginKey)
-  }
-
-  async rollback(pluginKey: string): Promise<PluginInstallResult> {
-    return rollbackInstalledPlugin({
-      pluginsDir: getUserPluginsDir(this.userDataPath),
-      pluginKey,
-      hostVersion: this.hostVersion,
-      blockedPluginReason: this.blockedPluginReason
-    })
   }
 
   private async requireListing(

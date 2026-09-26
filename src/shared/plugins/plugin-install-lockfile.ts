@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { isQualifiedPluginKey } from './plugin-manifest'
+import { isSafePluginRelativePath } from './plugin-path-safety'
 
 /**
  * Install lockfile: records where each installed plugin came from, the exact
@@ -13,6 +14,7 @@ import { isQualifiedPluginKey } from './plugin-manifest'
 export const PLUGIN_CONTENT_HASH_PATTERN = /^(?:[0-9a-f]{32}|[0-9a-f]{64})$/
 /** Git object id, SHA-1 or SHA-256. */
 export const PLUGIN_COMMIT_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/
+export const PLUGIN_ARCHIVE_SHA256_PATTERN = /^[0-9a-f]{64}$/
 
 export const pluginInstallSourceSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -21,6 +23,12 @@ export const pluginInstallSourceSchema = z.discriminatedUnion('kind', [
       .string()
       .min(1)
       .max(32 * 1024)
+  }),
+  z.object({
+    kind: z.literal('archive'),
+    /** Base name only; the picked path is not retained. */
+    fileName: z.string().min(1).max(1024),
+    sha256: z.string().regex(PLUGIN_ARCHIVE_SHA256_PATTERN)
   }),
   z.object({
     kind: z.literal('git'),
@@ -49,7 +57,9 @@ export const pluginInstallSourceSchema = z.discriminatedUnion('kind', [
         .min(1)
         .max(32 * 1024)
         .refine(isAllowedPluginGitUrl, 'plugin Git URL must use HTTPS or SSH'),
-      ref: z.string().min(1).max(4096)
+      ref: z.string().min(1).max(4096),
+      /** Folder inside the plugin repository; set for marketplace-hosted plugins. */
+      path: z.string().min(1).max(4096).refine(isSafePluginRelativePath).optional()
     })
   }),
   z.object({
@@ -157,9 +167,29 @@ export function removePluginLock(lock: PluginLockfile, pluginKey: string): Plugi
   return { version: 1, plugins }
 }
 
+const looseLockfileSchema = z.object({
+  version: z.literal(1),
+  plugins: z.record(z.string(), z.unknown())
+})
+
 export function parsePluginLockfile(raw: unknown): PluginLockfile {
   const parsed = pluginLockfileSchema.safeParse(raw)
+  if (parsed.success) {
+    return parsed.data
+  }
   // A corrupt lockfile must not brick installs; integrity of installed trees
   // is independently anchored by their hash-addressed directory names.
-  return parsed.success ? parsed.data : emptyPluginLockfile()
+  const loose = looseLockfileSchema.safeParse(raw)
+  if (!loose.success) {
+    return emptyPluginLockfile()
+  }
+  // Why: one entry from a newer build (unknown source kind) must not drop every other entry.
+  const plugins: Record<string, PluginLockEntry> = {}
+  for (const [key, value] of Object.entries(loose.data.plugins)) {
+    const entry = pluginLockEntrySchema.safeParse(value)
+    if (entry.success && isQualifiedPluginKey(key) && entry.data.pluginKey === key) {
+      plugins[key] = entry.data
+    }
+  }
+  return { version: 1, plugins }
 }
