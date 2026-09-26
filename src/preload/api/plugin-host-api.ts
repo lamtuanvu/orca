@@ -7,7 +7,10 @@ import type { PluginConsentRequest } from '../../shared/plugins/plugin-consent-r
 import type { PluginLanguagePackRegistration } from '../../shared/plugins/plugin-language-pack-artifact'
 import type { PluginChangeEvent } from '../../shared/plugins/plugin-change-event'
 import type { PluginManifest } from '../../shared/plugins/plugin-manifest'
-import type { PluginMarketplaceGitSource } from '../../shared/plugins/plugin-marketplace'
+import type {
+  PluginMarketplaceCheckoutSource,
+  PluginMarketplaceGitSource
+} from '../../shared/plugins/plugin-marketplace'
 import type {
   PluginDirectInstallRequestSource,
   PluginUpdatePreview
@@ -123,7 +126,7 @@ export type PluginMarketplaceHostListing = {
   marketplaceOwner: string
   marketplaceCommit: string
   pluginKey: string
-  source: PluginMarketplaceGitSource
+  source: PluginMarketplaceCheckoutSource
   description?: string
   categories: string[]
   official: boolean
@@ -137,7 +140,7 @@ export type PluginMarketplaceHostInstallPreview = {
   marketplaceOwner: string
   marketplaceCommit: string
   pluginKey: string
-  source: PluginMarketplaceGitSource
+  source: PluginMarketplaceCheckoutSource
   resolvedCommit: string
   contentHash: string
   consentFingerprint: string
@@ -173,6 +176,7 @@ export type PluginsApi = {
   }) => Promise<PluginPanelActionOutcome>
   install: (source: PluginHostInstallSource) => Promise<PluginHostInstallResult>
   listMarketplaces: () => Promise<PluginMarketplaceHostSourceState[]>
+  /** An empty `ref` means the repository's default branch. */
   addMarketplace: (source: PluginMarketplaceGitSource) => Promise<PluginMarketplaceHostSourceState>
   removeMarketplace: (args: { sourceId: string }) => Promise<PluginMarketplaceHostSourceState[]>
   refreshMarketplaces: (args?: { sourceId?: string }) => Promise<PluginMarketplaceHostSourceState[]>

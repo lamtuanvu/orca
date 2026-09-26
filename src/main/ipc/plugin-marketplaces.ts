@@ -1,8 +1,10 @@
 import { ipcMain } from 'electron'
+import { tmpdir } from 'node:os'
 import { z } from 'zod'
 import { PLUGIN_COMMIT_PATTERN } from '../../shared/plugins/plugin-install-lockfile'
 import { isQualifiedPluginKey } from '../../shared/plugins/plugin-manifest'
 import { pluginMarketplaceGitSourceSchema } from '../../shared/plugins/plugin-marketplace'
+import { resolvePluginGitDefaultBranch } from '../plugins/plugin-git-repository'
 import type { PluginMarketplaceInstaller } from '../plugins/plugin-marketplace-installer'
 import type { PluginMarketplaceService } from '../plugins/plugin-marketplace-service'
 import { PLUGIN_MARKETPLACE_SOURCE_ID_PATTERN } from '../plugins/plugin-marketplace-store'
@@ -14,6 +16,10 @@ export type PluginMarketplaceHandlerServices = {
 }
 
 const sourceIdSchema = z.string().regex(PLUGIN_MARKETPLACE_SOURCE_ID_PATTERN)
+// Why: an omitted ref means "the repository's default branch", resolved before registering.
+const addMarketplaceSchema = pluginMarketplaceGitSourceSchema.extend({
+  ref: z.string().trim().max(4_096).default('')
+})
 const removeMarketplaceSchema = z.strictObject({ sourceId: sourceIdSchema })
 const refreshMarketplaceSchema = z.strictObject({ sourceId: sourceIdSchema.optional() })
 const marketplacePluginSchema = z.strictObject({
@@ -34,8 +40,9 @@ export function registerPluginMarketplaceHandlers(
 ): void {
   ipcMain.handle('plugins:listMarketplaces', () => services.marketplace.listSources())
   ipcMain.handle('plugins:addMarketplace', async (_event, args: unknown) => {
-    const source = pluginMarketplaceGitSourceSchema.parse(args)
-    return services.marketplace.addSource(source)
+    const source = addMarketplaceSchema.parse(args)
+    const ref = source.ref || (await resolvePluginGitDefaultBranch(source.url, tmpdir()))
+    return services.marketplace.addSource({ ...source, ref })
   })
   ipcMain.handle('plugins:removeMarketplace', async (_event, args: unknown) => {
     const { sourceId } = removeMarketplaceSchema.parse(args)

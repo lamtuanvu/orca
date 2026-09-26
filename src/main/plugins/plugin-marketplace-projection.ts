@@ -1,5 +1,5 @@
 import type {
-  PluginMarketplaceEntry,
+  PluginMarketplaceCheckoutSource,
   PluginMarketplaceGitSource
 } from '../../shared/plugins/plugin-marketplace'
 
@@ -24,7 +24,8 @@ export type PluginMarketplaceListing = {
   marketplaceOwner: string
   marketplaceCommit: string
   pluginKey: string
-  source: PluginMarketplaceEntry['source']
+  /** Resolved checkout: in-repo entries point at the marketplace repository plus `path`. */
+  source: PluginMarketplaceCheckoutSource
   description?: string
   categories: string[]
   official: boolean

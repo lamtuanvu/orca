@@ -5,8 +5,11 @@ import type { PluginService } from '../plugins/plugin-service'
 
 type IpcHandler = (event: unknown, args?: unknown) => unknown
 
-const electronMocks = vi.hoisted(() => ({ handle: vi.fn() }))
+const electronMocks = vi.hoisted(() => ({ handle: vi.fn(), defaultBranch: vi.fn() }))
 vi.mock('electron', () => ({ ipcMain: { handle: electronMocks.handle } }))
+vi.mock('../plugins/plugin-git-repository', () => ({
+  resolvePluginGitDefaultBranch: electronMocks.defaultBranch
+}))
 
 import {
   registerPluginMarketplaceHandlers,
@@ -145,5 +148,27 @@ describe('plugin marketplace IPC authority', () => {
     vi.mocked(services.installer.install).mockResolvedValueOnce({ ok: false, error: 'failed' })
     await invoke('plugins:installMarketplacePlugin', preview)
     expect(pluginService.refresh).not.toHaveBeenCalled()
+  })
+
+  it('resolves the default branch when a marketplace is added without a ref', async () => {
+    const services = createServices()
+    registerPluginMarketplaceHandlers(createPluginService(), services)
+    electronMocks.defaultBranch.mockResolvedValueOnce('trunk')
+
+    await invoke('plugins:addMarketplace', {
+      kind: 'git',
+      url: 'https://example.com/m.git',
+      ref: ''
+    })
+
+    expect(electronMocks.defaultBranch).toHaveBeenCalledWith(
+      'https://example.com/m.git',
+      expect.any(String)
+    )
+    expect(services.marketplace.addSource).toHaveBeenCalledWith({
+      kind: 'git',
+      url: 'https://example.com/m.git',
+      ref: 'trunk'
+    })
   })
 })
