@@ -30,11 +30,11 @@ function createServices(): PluginMarketplaceHandlerServices {
       refreshAll: vi.fn().mockResolvedValue([{ id: SOURCE_ID }]),
       listPlugins: vi.fn().mockResolvedValue([{ pluginKey: PLUGIN_KEY }])
     } as unknown as PluginMarketplaceService,
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the marketplace handlers only call these installer methods.
     installer: {
       preview: vi.fn().mockResolvedValue({ pluginKey: PLUGIN_KEY }),
       install: vi.fn().mockResolvedValue({ ok: true, pluginKey: PLUGIN_KEY }),
-      previewInstalledUpdate: vi.fn().mockResolvedValue({ pluginKey: PLUGIN_KEY }),
-      rollback: vi.fn().mockResolvedValue({ ok: true, pluginKey: PLUGIN_KEY })
+      previewInstalledUpdate: vi.fn().mockResolvedValue({ pluginKey: PLUGIN_KEY })
     } as unknown as PluginMarketplaceInstaller
   }
 }
@@ -100,9 +100,6 @@ describe('plugin marketplace IPC authority', () => {
         unexpected: true
       })
     ).rejects.toThrow()
-    await expect(
-      invoke('plugins:rollbackMarketplacePlugin', { pluginKey: 'bare-id' })
-    ).rejects.toThrow()
   })
 
   it('dispatches source listing, add, removal, and refresh operations', async () => {
@@ -147,26 +144,6 @@ describe('plugin marketplace IPC authority', () => {
     vi.mocked(pluginService.refresh).mockClear()
     vi.mocked(services.installer.install).mockResolvedValueOnce({ ok: false, error: 'failed' })
     await invoke('plugins:installMarketplacePlugin', preview)
-    expect(pluginService.refresh).not.toHaveBeenCalled()
-  })
-
-  it('deactivates before rollback and refreshes discovery only on success', async () => {
-    const services = createServices()
-    const pluginService = createPluginService()
-    registerPluginMarketplaceHandlers(pluginService, services)
-
-    await invoke('plugins:rollbackMarketplacePlugin', { pluginKey: PLUGIN_KEY })
-
-    expect(pluginService.deactivatePlugin).toHaveBeenCalledWith(PLUGIN_KEY)
-    expect(services.installer.rollback).toHaveBeenCalledWith(PLUGIN_KEY)
-    expect(vi.mocked(pluginService.deactivatePlugin).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(services.installer.rollback).mock.invocationCallOrder[0]
-    )
-    expect(pluginService.refresh).toHaveBeenCalledOnce()
-
-    vi.mocked(pluginService.refresh).mockClear()
-    vi.mocked(services.installer.rollback).mockResolvedValueOnce({ ok: false, error: 'failed' })
-    await invoke('plugins:rollbackMarketplacePlugin', { pluginKey: PLUGIN_KEY })
     expect(pluginService.refresh).not.toHaveBeenCalled()
   })
 })

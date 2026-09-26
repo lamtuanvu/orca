@@ -69,7 +69,8 @@ describe('plugin install trust', () => {
       installPluginFromLocalPath({ pluginsDir, sourcePath, hostVersion: '1.4.0' })
     ).resolves.toEqual({
       ok: false,
-      error: 'reserved plugin identity stablyai.orca-skills cannot be installed from a local path'
+      error:
+        'reserved plugin identity stablyai.orca-skills cannot be installed from a local folder or zip file'
     })
     await expect(readPluginLockfile(pluginsDir)).resolves.toEqual({ version: 1, plugins: {} })
   })

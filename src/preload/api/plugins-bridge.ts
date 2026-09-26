@@ -45,9 +45,11 @@ export const pluginsApi = {
   installMarketplacePlugin: (preview) =>
     ipcRenderer.invoke('plugins:installMarketplacePlugin', preview),
   previewMarketplaceUpdate: (args) => ipcRenderer.invoke('plugins:previewMarketplaceUpdate', args),
-  rollbackMarketplacePlugin: (args) =>
-    ipcRenderer.invoke('plugins:rollbackMarketplacePlugin', args),
-  remove: (args: { pluginKey: string }): Promise<PluginHostListEntry[]> =>
+  pickInstallSource: (args) => ipcRenderer.invoke('plugins:pickInstallSource', args),
+  previewUpdate: (args) => ipcRenderer.invoke('plugins:previewUpdate', args),
+  update: (args) => ipcRenderer.invoke('plugins:update', args),
+  rollback: (args) => ipcRenderer.invoke('plugins:rollback', args),
+  remove: (args: { pluginKey: string; keepData?: boolean }): Promise<PluginHostListEntry[]> =>
     ipcRenderer.invoke('plugins:remove', args),
   getLogs: (args: { pluginKey: string }): Promise<PluginHostLogLine[]> =>
     ipcRenderer.invoke('plugins:getLogs', args),

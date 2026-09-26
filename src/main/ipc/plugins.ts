@@ -7,26 +7,20 @@ import type {
   PluginPanelEntry
 } from '../../shared/plugins/plugin-panel-bridge'
 import { getUserPluginsDir, getPluginsDataDir } from '../plugins/plugin-discovery'
-import {
-  installPluginFromGit,
-  installPluginFromLocalPath,
-  readPluginLockfile,
-  removeInstalledPlugin
-} from '../plugins/plugin-install'
+import { readPluginLockfile, removeInstalledPlugin } from '../plugins/plugin-install'
+import { installPluginFromSource } from '../plugins/plugin-source-install'
 import { applyPluginConsent, applyPluginEnablement } from '../plugins/plugin-enablement'
 import type { PluginService } from '../plugins/plugin-service'
 import { bindPluginPanelOwnerLifecycle } from '../plugins/plugin-panel-owner-lifecycle'
 import { isQualifiedPluginKey } from '../../shared/plugins/plugin-manifest'
 import { pluginConsentRequestSchema } from '../../shared/plugins/plugin-consent-request'
 import { normalizePluginIdList } from '../../shared/plugins/plugin-consent-state'
-import {
-  isAllowedPluginGitUrl,
-  type PluginLockfile
-} from '../../shared/plugins/plugin-install-lockfile'
+import type { PluginLockfile } from '../../shared/plugins/plugin-install-lockfile'
 import {
   registerPluginMarketplaceHandlers,
   type PluginMarketplaceHandlerServices
 } from './plugin-marketplaces'
+import { pluginDirectSourceSchema, registerPluginUpdateHandlers } from './plugin-updates'
 
 export function parsePluginConsentArgs(args: unknown): z.infer<typeof pluginConsentRequestSchema> {
   return pluginConsentRequestSchema.parse(args)
@@ -48,22 +42,13 @@ const invokeCommandArgsSchema = z.object({
   args: z.unknown().optional()
 })
 
-const installArgsSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('local-path'), path: z.string().min(1) }),
-  z.object({
-    kind: z.literal('git'),
-    url: z.string().trim().min(1).refine(isAllowedPluginGitUrl, 'git URL must use HTTPS or SSH'),
-    // Why: installs must stay reproducible even when callers bypass renderer validation.
-    ref: z.string().trim().min(1)
-  })
-])
-
-export function parsePluginInstallArgs(args: unknown): z.infer<typeof installArgsSchema> {
-  return installArgsSchema.parse(args)
+export function parsePluginInstallArgs(args: unknown): z.infer<typeof pluginDirectSourceSchema> {
+  return pluginDirectSourceSchema.parse(args)
 }
 
 const removeArgsSchema = z.object({
-  pluginKey: z.string().refine(isQualifiedPluginKey, 'invalid qualified plugin key')
+  pluginKey: z.string().refine(isQualifiedPluginKey, 'invalid qualified plugin key'),
+  keepData: z.boolean().optional()
 })
 const logsArgsSchema = z.object({ pluginKey: z.string().min(1) })
 
@@ -197,26 +182,13 @@ export function registerPluginHandlers(
 
   ipcMain.handle('plugins:install', async (_event, args: unknown) => {
     await pluginService.whenReady()
-    const parsed = parsePluginInstallArgs(args)
-    const pluginsDir = getUserPluginsDir(pluginService.options.userDataPath)
-    const hostVersion = pluginService.options.hostVersion
-    const blockedPluginReason = (pluginKey: string): string | null =>
-      pluginService.options.getPluginKillListEntry?.(pluginKey)?.reason ?? null
-    const result =
-      parsed.kind === 'local-path'
-        ? await installPluginFromLocalPath({
-            pluginsDir,
-            sourcePath: parsed.path,
-            hostVersion,
-            blockedPluginReason
-          })
-        : await installPluginFromGit({
-            pluginsDir,
-            url: parsed.url,
-            ref: parsed.ref,
-            hostVersion,
-            blockedPluginReason
-          })
+    const result = await installPluginFromSource({
+      pluginsDir: getUserPluginsDir(pluginService.options.userDataPath),
+      source: parsePluginInstallArgs(args),
+      hostVersion: pluginService.options.hostVersion,
+      blockedPluginReason: (pluginKey) =>
+        pluginService.options.getPluginKillListEntry?.(pluginKey)?.reason ?? null
+    })
     if (result.ok) {
       await pluginService.refresh()
     }
@@ -235,7 +207,8 @@ export function registerPluginHandlers(
       removeInstalledPlugin({
         pluginsDir,
         pluginsDataDir: getPluginsDataDir(pluginService.options.userDataPath),
-        pluginKey: parsed.pluginKey
+        pluginKey: parsed.pluginKey,
+        keepData: parsed.keepData
       })
     )
     // Drop the stale consent so a later reinstall re-prompts from scratch.
@@ -264,6 +237,7 @@ export function registerPluginHandlers(
     await pluginService.refresh()
     return listPluginsForClients(pluginService)
   })
+  registerPluginUpdateHandlers(pluginService)
   if (marketplaceServices) {
     registerPluginMarketplaceHandlers(pluginService, marketplaceServices)
   }

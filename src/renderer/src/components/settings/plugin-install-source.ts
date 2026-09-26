@@ -1,15 +1,22 @@
 import type { PluginHostInstallSource } from '../../../../preload/api-types'
 import { isAllowedPluginGitUrl } from '../../../../shared/plugins/plugin-install-lockfile'
 
+export type PluginInstallSourceKind = PluginHostInstallSource['kind']
+
 export type PluginInstallSourceParseResult =
   | { ok: true; source: PluginHostInstallSource }
   | {
       ok: false
-      reason: 'missing-local-path' | 'missing-git-url' | 'missing-git-ref' | 'invalid-git-url'
+      reason:
+        | 'missing-local-path'
+        | 'missing-archive-path'
+        | 'missing-git-url'
+        | 'missing-git-ref'
+        | 'invalid-git-url'
     }
 
 export function parsePluginInstallSource(
-  kind: 'local-path' | 'git',
+  kind: PluginInstallSourceKind,
   input: string
 ): PluginInstallSourceParseResult {
   const value = input.trim()
@@ -17,6 +24,11 @@ export function parsePluginInstallSource(
     return value
       ? { ok: true, source: { kind: 'local-path', path: value } }
       : { ok: false, reason: 'missing-local-path' }
+  }
+  if (kind === 'archive') {
+    return value
+      ? { ok: true, source: { kind: 'archive', path: value } }
+      : { ok: false, reason: 'missing-archive-path' }
   }
   if (!value) {
     return { ok: false, reason: 'missing-git-url' }

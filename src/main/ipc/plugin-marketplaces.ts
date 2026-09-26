@@ -64,13 +64,4 @@ export function registerPluginMarketplaceHandlers(
     const { pluginKey } = installedPluginSchema.parse(args)
     return services.installer.previewInstalledUpdate(pluginKey)
   })
-  ipcMain.handle('plugins:rollbackMarketplacePlugin', async (_event, args: unknown) => {
-    const { pluginKey } = installedPluginSchema.parse(args)
-    await pluginService.deactivatePlugin(pluginKey)
-    const result = await services.installer.rollback(pluginKey)
-    if (result.ok) {
-      await pluginService.refresh()
-    }
-    return result
-  })
 }

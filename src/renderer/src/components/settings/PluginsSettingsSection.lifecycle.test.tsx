@@ -167,7 +167,7 @@ function installApi(overrides: Record<string, unknown> = {}): {
         getLogs: vi.fn().mockResolvedValue([]),
         consent: vi.fn().mockResolvedValue([plugin]),
         install: vi.fn(),
-        rollbackMarketplacePlugin: vi.fn().mockResolvedValue({
+        rollback: vi.fn().mockResolvedValue({
           ok: true,
           pluginKey: plugin.pluginKey,
           version: plugin.version,
@@ -308,7 +308,7 @@ describe('PluginsSettingsSection lifecycle', () => {
     }
 
     await act(async () => click(rollbackAction))
-    expect(window.api.plugins.rollbackMarketplacePlugin).not.toHaveBeenCalled()
+    expect(window.api.plugins.rollback).not.toHaveBeenCalled()
     const confirm = Array.from(container.querySelectorAll('button')).find(
       (button) => button.textContent === 'Confirm rollback'
     )
@@ -317,7 +317,7 @@ describe('PluginsSettingsSection lifecycle', () => {
     }
     await act(async () => click(confirm))
 
-    expect(window.api.plugins.rollbackMarketplacePlugin).toHaveBeenCalledWith({
+    expect(window.api.plugins.rollback).toHaveBeenCalledWith({
       pluginKey: plugin.pluginKey
     })
   })

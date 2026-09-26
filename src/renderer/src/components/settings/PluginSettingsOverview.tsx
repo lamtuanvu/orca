@@ -25,6 +25,7 @@ type PluginSettingsOverviewProps = {
   onToggleEnabled: (plugin: PluginHostListEntry) => void
   onToggleLogs: (pluginKey: string) => void
   onMarketplaceInstalled: (pluginKey: string) => Promise<void>
+  onUpdateRequest: (pluginKey: string) => void
   onRollbackRequest: (pluginKey: string) => void
   onRemoveRequest: (pluginKey: string) => void
   onUpdateDevPaths: (paths: string[]) => Promise<void>
@@ -58,6 +59,7 @@ export function PluginSettingsOverview({
   onToggleEnabled,
   onToggleLogs,
   onMarketplaceInstalled,
+  onUpdateRequest,
   onRollbackRequest,
   onRemoveRequest,
   onUpdateDevPaths
@@ -154,6 +156,7 @@ export function PluginSettingsOverview({
                       onReview={onReview}
                       onToggleEnabled={onToggleEnabled}
                       onToggleLogs={onToggleLogs}
+                      onUpdateRequest={onUpdateRequest}
                       onRollbackRequest={onRollbackRequest}
                       onRemoveRequest={onRemoveRequest}
                     />

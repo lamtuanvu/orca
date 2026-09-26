@@ -185,7 +185,8 @@ export type {
   PluginHostStatus,
   PluginMarketplaceHostInstallPreview,
   PluginMarketplaceHostListing,
-  PluginMarketplaceHostSourceState
+  PluginMarketplaceHostSourceState,
+  PluginUpdatePreview
 } from './api/plugin-host-api'
 export type {
   PreflightApi,

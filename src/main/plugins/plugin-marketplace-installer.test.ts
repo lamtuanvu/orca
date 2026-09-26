@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PluginMarketplace } from '../../shared/plugins/plugin-marketplace'
-import { readPluginLockfile } from './plugin-install'
+import { readPluginLockfile, rollbackInstalledPlugin } from './plugin-install'
 import { PluginMarketplaceInstaller } from './plugin-marketplace-installer'
 import { PluginMarketplaceService } from './plugin-marketplace-service'
 
@@ -184,7 +184,13 @@ describe('PluginMarketplaceInstaller', () => {
       version: '2.0.0'
     })
 
-    await expect(installer.rollback('community.notes')).resolves.toMatchObject({
+    await expect(
+      rollbackInstalledPlugin({
+        pluginsDir: join(root, 'plugins'),
+        pluginKey: 'community.notes',
+        hostVersion: '1.4.0'
+      })
+    ).resolves.toMatchObject({
       ok: true,
       version: '1.0.0',
       contentHash: firstInstall.contentHash
