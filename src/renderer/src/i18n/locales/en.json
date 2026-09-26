@@ -11652,7 +11652,9 @@
           "blocked": "Blocked by Orca's safety list: {{value0}}",
           "blockedAction": "Blocked",
           "checkUpdate": "Check for update",
-          "install": "Install"
+          "install": "Install",
+          "updateAvailable": "Update available",
+          "switchSource": "Update from marketplace"
         },
         "PluginMarketplacePreviewDialog": {
           "languagePacksOne": "1 language pack",
@@ -11701,7 +11703,10 @@
           "stale": "Refresh failed. Browsing the last valid cached index.",
           "refreshLabel": "Refresh {{value0}}",
           "removeLabel": "Remove {{value0}}",
-          "done": "Done"
+          "done": "Done",
+          "urlOrShorthandDescription": "An HTTPS or SSH repository URL containing orca-marketplace.json, or owner/repo for GitHub.",
+          "optionalRefDescription": "Optional branch, tag, or commit. Leave empty for the default branch. Every fetched index is recorded at an exact commit.",
+          "refPlaceholder": "Default branch"
         },
         "PluginRemoveDialog": {
           "title": "Remove plugin?",

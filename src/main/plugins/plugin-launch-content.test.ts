@@ -36,7 +36,9 @@ describe('Phase 1 launch plugin content', () => {
     expect(
       marketplace.plugins.filter(
         (plugin) =>
-          isOfficialPluginIdentity(plugin.id) && isOfficialOrganizationGitSource(plugin.source.url)
+          isOfficialPluginIdentity(plugin.id) &&
+          plugin.source.kind === 'git' &&
+          isOfficialOrganizationGitSource(plugin.source.url)
       ).length
     ).toBeGreaterThanOrEqual(2)
 

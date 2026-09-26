@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { PluginManifest } from '../../shared/plugins/plugin-manifest'
 import { getUserPluginsDir } from './plugin-discovery'
-import { checkoutPluginGitSource } from './plugin-git-repository'
+import { checkoutMarketplacePlugin } from './plugin-marketplace-checkout'
 import {
   installPluginFromMarketplace,
   readPluginLockfile,
@@ -62,14 +62,17 @@ export class PluginMarketplaceInstaller {
     const listing = await this.requireListing(marketplaceSourceId, pluginKey)
     const stagingDirectory = await mkdtemp(join(tmpdir(), 'orca-plugin-marketplace-preview-'))
     try {
-      const resolvedCommit = await checkoutPluginGitSource({
-        url: listing.source.url,
-        ref: listing.source.ref,
+      const { resolvedCommit, rootDir } = await checkoutMarketplacePlugin({
+        source: listing.source,
         destination: stagingDirectory,
         workingDirectory: tmpdir()
       })
+      if (listing.source.path && resolvedCommit !== listing.marketplaceCommit) {
+        // Why: in-repo plugins are pinned to the refreshed index commit, not a moving branch.
+        throw new Error('marketplace changed since it was last refreshed; refresh and try again')
+      }
       const inspection = await inspectPluginInstallTree({
-        rootDir: stagingDirectory,
+        rootDir,
         hostVersion: this.hostVersion,
         expectedPluginKey: pluginKey
       })
@@ -122,7 +125,11 @@ export class PluginMarketplaceInstaller {
         ref: sourceState.source.ref,
         resolvedCommit: preview.marketplaceCommit
       },
-      plugin: { url: listing.source.url, ref: listing.source.ref },
+      plugin: {
+        url: listing.source.url,
+        ref: listing.source.ref,
+        ...(listing.source.path ? { path: listing.source.path } : {})
+      },
       blockedPluginReason: this.blockedPluginReason
     })
   }

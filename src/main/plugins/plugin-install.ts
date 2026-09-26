@@ -14,7 +14,7 @@ import {
   installStagedPluginTree,
   type PluginInstallResult
 } from './plugin-install-staging'
-import { checkoutPluginGitSource } from './plugin-git-repository'
+import { checkoutMarketplacePlugin } from './plugin-marketplace-checkout'
 import { readPluginCurrentPointer } from './plugin-current-pointer'
 import { readPluginInstallProvenance } from './plugin-install-provenance'
 import { publishPluginInstall } from './plugin-install-publication'
@@ -98,7 +98,7 @@ export async function installPluginFromMarketplace(input: {
   expectedPluginKey: string
   expectedResolvedCommit: string
   marketplace: { url: string; ref: string; resolvedCommit: string }
-  plugin: { url: string; ref: string }
+  plugin: { url: string; ref: string; path?: string }
   blockedPluginReason?: (pluginKey: string) => string | null
 }): Promise<PluginInstallResult> {
   const source = pluginInstallSourceSchema.parse({
@@ -115,9 +115,8 @@ export async function installPluginFromMarketplace(input: {
   return serializePluginMutation(input.pluginsDir, async () => {
     const stagingDir = await mkdtemp(join(tmpdir(), 'orca-plugin-marketplace-install-'))
     try {
-      const resolvedCommit = await checkoutPluginGitSource({
-        url: input.plugin.url,
-        ref: input.plugin.ref,
+      const { resolvedCommit, rootDir } = await checkoutMarketplacePlugin({
+        source: { kind: 'git', ...input.plugin },
         destination: stagingDir,
         workingDirectory: tmpdir()
       })
@@ -126,7 +125,7 @@ export async function installPluginFromMarketplace(input: {
       }
       return await installStagedPluginTree({
         pluginsDir: input.pluginsDir,
-        stagingDir,
+        stagingDir: rootDir,
         hostVersion: input.hostVersion,
         source,
         resolvedCommit,
