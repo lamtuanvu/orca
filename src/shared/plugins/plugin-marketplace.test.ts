@@ -8,8 +8,12 @@ import {
   isOfficialOrganizationGitSource,
   isOfficialPluginIdentity,
   isReservedPluginIdentity,
+  expandMarketplaceUrlInput,
   parseGitRepositoryIdentity,
+  parsePluginMarketplaceIndex,
+  pluginMarketplaceEntrySourceSchema,
   pluginMarketplaceSchema,
+  resolveMarketplaceCheckoutSource,
   pluginMarketplaceTrustMetadataSchema
 } from './plugin-marketplace'
 
@@ -183,6 +187,69 @@ describe('marketplace provenance contracts', () => {
     expect(isMarketplaceListingSupported([])).toBe(true)
     for (const deferred of ['themes', 'icons', 'icon-themes', 'terminal-themes', 'skills']) {
       expect(isMarketplaceListingSupported([deferred, 'official'])).toBe(false)
+    }
+  })
+})
+
+describe('marketplace-hosted plugin folders', () => {
+  it('normalizes ./ and trailing slashes and rejects folders outside the repository', () => {
+    expect(
+      pluginMarketplaceEntrySourceSchema.parse({ kind: 'path', path: './plugins/notes/' })
+    ).toEqual({ kind: 'path', path: 'plugins/notes' })
+    for (const path of ['../notes', '/plugins/notes', 'plugins\\notes', 'plugins/../../x', '']) {
+      expect(pluginMarketplaceEntrySourceSchema.safeParse({ kind: 'path', path }).success).toBe(
+        false
+      )
+    }
+  })
+
+  it('resolves an in-repo entry to the marketplace repository and ref', () => {
+    const marketplace = { kind: 'git' as const, url: 'https://git.example/team/p.git', ref: 'main' }
+    expect(
+      resolveMarketplaceCheckoutSource(marketplace, { kind: 'path', path: 'plugins/notes' })
+    ).toEqual({ ...marketplace, path: 'plugins/notes' })
+    const external = { kind: 'git' as const, url: 'https://git.example/x.git', ref: 'v1' }
+    expect(resolveMarketplaceCheckoutSource(marketplace, external)).toBe(external)
+  })
+})
+
+describe('parsePluginMarketplaceIndex', () => {
+  it('skips unreadable and duplicate entries instead of rejecting the whole index', () => {
+    const parsed = parsePluginMarketplaceIndex({
+      name: 'Plugins',
+      owner: 'team',
+      plugins: [
+        { id: 'team.notes', source: { kind: 'path', path: 'plugins/notes' } },
+        { id: 'team.future', source: { kind: 'npm', package: 'x' } },
+        { id: 'not-qualified', source: { kind: 'path', path: 'x' } },
+        { id: 'team.notes', source: { kind: 'path', path: 'plugins/other' } }
+      ]
+    })
+    expect(parsed.skippedEntries).toBe(3)
+    expect(parsed.marketplace.plugins).toEqual([
+      { id: 'team.notes', source: { kind: 'path', path: 'plugins/notes' }, categories: [] }
+    ])
+  })
+
+  it('still rejects an index whose envelope is invalid', () => {
+    expect(() => parsePluginMarketplaceIndex({ name: 'Plugins', plugins: [] })).toThrow()
+  })
+})
+
+describe('expandMarketplaceUrlInput', () => {
+  it('expands GitHub owner/repo shorthand and leaves full URLs alone', () => {
+    expect(expandMarketplaceUrlInput(' acme/orca-plugins ')).toBe(
+      'https://github.com/acme/orca-plugins.git'
+    )
+    expect(expandMarketplaceUrlInput('acme/orca-plugins.git')).toBe(
+      'https://github.com/acme/orca-plugins.git'
+    )
+    for (const url of [
+      'https://gitlab.com/acme/orca-plugins.git',
+      'git@gitlab.com:acme/orca-plugins.git',
+      'gitlab.com/acme'
+    ]) {
+      expect(expandMarketplaceUrlInput(url)).toBe(url)
     }
   })
 })

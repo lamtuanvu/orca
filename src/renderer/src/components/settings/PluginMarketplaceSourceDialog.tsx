@@ -14,6 +14,7 @@ import {
 } from '../ui/dialog'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
+import { expandMarketplaceUrlInput } from '../../../../shared/plugins/plugin-marketplace'
 
 type PluginMarketplaceSourceDialogProps = {
   open: boolean
@@ -35,7 +36,7 @@ export function PluginMarketplaceSourceDialog({
 }: PluginMarketplaceSourceDialogProps): React.JSX.Element {
   const urlRef = useRef<HTMLInputElement>(null)
   const [url, setUrl] = useState('')
-  const [gitRef, setGitRef] = useState('main')
+  const [gitRef, setGitRef] = useState('')
   const [busyAction, setBusyAction] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,7 +48,7 @@ export function PluginMarketplaceSourceDialog({
   }, [open])
 
   const add = async (): Promise<void> => {
-    if (!url.trim() || !gitRef.trim() || busyAction) {
+    if (!url.trim() || busyAction) {
       return
     }
     setBusyAction('add')
@@ -55,11 +56,11 @@ export function PluginMarketplaceSourceDialog({
     try {
       await window.api.plugins.addMarketplace({
         kind: 'git',
-        url: url.trim(),
+        url: expandMarketplaceUrlInput(url),
         ref: gitRef.trim()
       })
       setUrl('')
-      setGitRef('main')
+      setGitRef('')
       await onChanged()
     } catch (cause) {
       setError(
@@ -151,8 +152,8 @@ export function PluginMarketplaceSourceDialog({
             </Label>
             <p className="text-xs text-muted-foreground">
               {translate(
-                'auto.components.settings.PluginMarketplaceSourceDialog.urlDescription',
-                'Use an HTTPS or SSH repository URL containing orca-marketplace.json.'
+                'auto.components.settings.PluginMarketplaceSourceDialog.urlOrShorthandDescription',
+                'An HTTPS or SSH repository URL containing orca-marketplace.json, or owner/repo for GitHub.'
               )}
             </p>
           </div>
@@ -176,8 +177,8 @@ export function PluginMarketplaceSourceDialog({
             </Label>
             <p className="text-xs text-muted-foreground">
               {translate(
-                'auto.components.settings.PluginMarketplaceSourceDialog.refDescription',
-                'Choose a branch, tag, or commit. Every fetched index is recorded at an exact commit.'
+                'auto.components.settings.PluginMarketplaceSourceDialog.optionalRefDescription',
+                'Optional branch, tag, or commit. Leave empty for the default branch. Every fetched index is recorded at an exact commit.'
               )}
             </p>
           </div>
@@ -185,6 +186,10 @@ export function PluginMarketplaceSourceDialog({
             <Input
               id="plugin-marketplace-ref"
               value={gitRef}
+              placeholder={translate(
+                'auto.components.settings.PluginMarketplaceSourceDialog.refPlaceholder',
+                'Default branch'
+              )}
               disabled={Boolean(busyAction)}
               onChange={(event) => setGitRef(event.target.value)}
               onKeyDown={(event) => {
@@ -195,7 +200,7 @@ export function PluginMarketplaceSourceDialog({
             />
             <Button
               className="w-28"
-              disabled={Boolean(busyAction) || !url.trim() || !gitRef.trim()}
+              disabled={Boolean(busyAction) || !url.trim()}
               onClick={() => void add()}
             >
               {busyAction === 'add' ? <Loader2 className="animate-spin" /> : null}

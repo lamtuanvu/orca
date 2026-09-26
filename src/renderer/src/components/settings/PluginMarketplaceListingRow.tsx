@@ -8,12 +8,19 @@ import { PluginCatalogAvatar } from '../plugin-catalog/PluginCatalogAvatar'
 import { pluginDisplayNameFromKey } from '../plugin-catalog/plugin-display-name'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
+import {
+  pluginMarketplaceListingAction,
+  type PluginMarketplaceListingAction
+} from './plugin-marketplace-listing-action'
 
 type PluginMarketplaceListingRowProps = {
   listing: PluginMarketplaceHostListing
   installed: PluginHostListEntry | null
   busy: boolean
-  onPreview: (listing: PluginMarketplaceHostListing, update: boolean) => void
+  onPreview: (
+    listing: PluginMarketplaceHostListing,
+    action: Exclude<PluginMarketplaceListingAction, 'none'>
+  ) => void
 }
 
 export function PluginMarketplaceListingRow({
@@ -23,7 +30,7 @@ export function PluginMarketplaceListingRow({
   onPreview
 }: PluginMarketplaceListingRowProps): React.JSX.Element {
   const blocked = listing.blockedByKillList
-  const canCheckUpdate = installed?.source?.kind === 'marketplace'
+  const action = pluginMarketplaceListingAction(listing, installed)
   const name = pluginDisplayNameFromKey(listing.pluginKey)
   return (
     <article
@@ -97,33 +104,41 @@ export function PluginMarketplaceListingRow({
               'Blocked'
             )}
           </Button>
-        ) : canCheckUpdate ? (
+        ) : action === 'none' ? null : (
           <Button
-            variant="outline"
+            variant={action === 'update-available' ? 'default' : 'outline'}
             size="sm"
-            className="w-40"
+            className={action === 'install' ? 'w-28' : 'w-44'}
             disabled={busy}
-            onClick={() => onPreview(listing, true)}
+            onClick={() => onPreview(listing, action)}
           >
             {busy ? <Loader2 className="animate-spin" /> : null}
-            {translate(
-              'auto.components.settings.PluginMarketplaceListingRow.checkUpdate',
-              'Check for update'
-            )}
-          </Button>
-        ) : installed ? null : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-28"
-            disabled={busy}
-            onClick={() => onPreview(listing, false)}
-          >
-            {busy ? <Loader2 className="animate-spin" /> : null}
-            {translate('auto.components.settings.PluginMarketplaceListingRow.install', 'Install')}
+            {listingActionLabel(action)}
           </Button>
         )}
       </div>
     </article>
   )
+}
+
+function listingActionLabel(action: Exclude<PluginMarketplaceListingAction, 'none'>): string {
+  switch (action) {
+    case 'install':
+      return translate('auto.components.settings.PluginMarketplaceListingRow.install', 'Install')
+    case 'update-available':
+      return translate(
+        'auto.components.settings.PluginMarketplaceListingRow.updateAvailable',
+        'Update available'
+      )
+    case 'switch-source':
+      return translate(
+        'auto.components.settings.PluginMarketplaceListingRow.switchSource',
+        'Update from marketplace'
+      )
+    case 'check-update':
+      return translate(
+        'auto.components.settings.PluginMarketplaceListingRow.checkUpdate',
+        'Check for update'
+      )
+  }
 }

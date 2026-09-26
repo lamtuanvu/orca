@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { isAllowedPluginGitUrl } from './plugin-install-lockfile'
 import { isQualifiedPluginKey } from './plugin-manifest'
+import { isSafePluginRelativePath } from './plugin-path-safety'
 
 export const PLUGIN_MARKETPLACE_FILENAME = 'orca-marketplace.json'
 export const PLUGIN_MARKETPLACE_ENTRY_LIMIT = 2_048
@@ -53,11 +54,33 @@ export const pluginMarketplaceGitSourceSchema = z.strictObject({
   ref: z.string().trim().min(1).max(4_096)
 })
 
+/** A plugin folder inside the marketplace repository itself, read at the
+ * marketplace's own resolved commit. Needs a build that understands `path`. */
+export const pluginMarketplacePathSourceSchema = z.strictObject({
+  kind: z.literal('path'),
+  path: z
+    .string()
+    .trim()
+    .min(1)
+    .max(4_096)
+    // Why: accept the common "./plugins/foo/" spelling but store one canonical form.
+    .transform((value) => value.replace(/^\.\//, '').replace(/\/+$/, ''))
+    .refine(
+      (value) => !value.includes('\\') && isSafePluginRelativePath(value),
+      'path must be a relative folder inside the marketplace repository, using forward slashes'
+    )
+})
+
+export const pluginMarketplaceEntrySourceSchema = z.discriminatedUnion('kind', [
+  pluginMarketplaceGitSourceSchema,
+  pluginMarketplacePathSourceSchema
+])
+
 export const pluginMarketplaceEntrySchema = z
   .strictObject({
     /** Canonical `<publisher>.<id>` identity expected in the source manifest. */
     id: z.string().refine(isQualifiedPluginKey, 'invalid qualified plugin key'),
-    source: pluginMarketplaceGitSourceSchema,
+    source: pluginMarketplaceEntrySourceSchema,
     description: z.string().min(1).max(4_096).optional(),
     categories: z
       .array(marketplaceCategorySchema)
@@ -112,6 +135,51 @@ export const pluginMarketplaceTrustMetadataSchema = z
 export type PluginMarketplace = z.infer<typeof pluginMarketplaceSchema>
 export type PluginMarketplaceEntry = z.infer<typeof pluginMarketplaceEntrySchema>
 export type PluginMarketplaceGitSource = z.infer<typeof pluginMarketplaceGitSourceSchema>
+export type PluginMarketplaceEntrySource = z.infer<typeof pluginMarketplaceEntrySourceSchema>
+/** Where a listing's bytes are checked out from; `path` is a folder inside that checkout. */
+export type PluginMarketplaceCheckoutSource = PluginMarketplaceGitSource & { path?: string }
+
+export function resolveMarketplaceCheckoutSource(
+  marketplaceSource: PluginMarketplaceGitSource,
+  entrySource: PluginMarketplaceEntrySource
+): PluginMarketplaceCheckoutSource {
+  return entrySource.kind === 'git'
+    ? entrySource
+    : {
+        kind: 'git',
+        url: marketplaceSource.url,
+        ref: marketplaceSource.ref,
+        path: entrySource.path
+      }
+}
+
+const marketplaceEnvelopeSchema = z.strictObject({
+  name: z.string().min(1).max(256),
+  owner: marketplaceOwnerSchema,
+  plugins: z.array(z.unknown()).max(PLUGIN_MARKETPLACE_ENTRY_LIMIT)
+})
+
+/** Parses an index while skipping entries this build cannot read, so one
+ * newer-format or malformed listing does not hide the whole marketplace. */
+export function parsePluginMarketplaceIndex(raw: unknown): {
+  marketplace: PluginMarketplace
+  skippedEntries: number
+} {
+  const envelope = marketplaceEnvelopeSchema.parse(raw)
+  const seen = new Set<string>()
+  const plugins: PluginMarketplaceEntry[] = []
+  for (const candidate of envelope.plugins) {
+    const entry = pluginMarketplaceEntrySchema.safeParse(candidate)
+    if (entry.success && !seen.has(entry.data.id)) {
+      seen.add(entry.data.id)
+      plugins.push(entry.data)
+    }
+  }
+  return {
+    marketplace: { name: envelope.name, owner: envelope.owner, plugins },
+    skippedEntries: envelope.plugins.length - plugins.length
+  }
+}
 export type PluginMarketplaceTrustMetadata = z.infer<typeof pluginMarketplaceTrustMetadataSchema>
 
 export const OFFICIAL_MARKETPLACE_GIT_SOURCE: PluginMarketplaceGitSource = {
@@ -204,4 +272,15 @@ export function isOfficialMarketplaceGitSource(url: string): boolean {
     source.owner.toLowerCase() === OFFICIAL_MARKETPLACE_OWNER &&
     source.repository.toLowerCase() === OFFICIAL_MARKETPLACE_REPOSITORY
   )
+}
+
+const GITHUB_REPOSITORY_SHORTHAND =
+  /^([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)\/([A-Za-z0-9_][A-Za-z0-9._-]*?)(?:\.git)?$/
+
+/** Expands GitHub's `owner/repo` shorthand; every other input (GitLab, self-hosted,
+ * SSH) must already be a full Git URL and is returned trimmed. */
+export function expandMarketplaceUrlInput(input: string): string {
+  const value = input.trim()
+  const shorthand = GITHUB_REPOSITORY_SHORTHAND.exec(value)
+  return shorthand ? `https://github.com/${shorthand[1]}/${shorthand[2]}.git` : value
 }

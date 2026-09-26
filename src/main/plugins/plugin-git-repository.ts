@@ -46,3 +46,19 @@ export async function checkoutPluginGitSource(input: {
   }
   return resolvedCommit
 }
+
+/** Resolves the branch a remote's HEAD points at, e.g. `main`. */
+export async function resolvePluginGitDefaultBranch(
+  url: string,
+  workingDirectory: string
+): Promise<string> {
+  if (!isAllowedPluginGitUrl(url)) {
+    throw new Error('plugin Git URL must use HTTPS or SSH')
+  }
+  const output = await runPluginGit(['ls-remote', '--symref', '--', url, 'HEAD'], workingDirectory)
+  const match = /^ref:\s+refs\/heads\/(\S+)\s+HEAD$/m.exec(output)
+  if (!match) {
+    throw new Error('could not determine the repository default branch; enter a branch or tag')
+  }
+  return match[1]!
+}

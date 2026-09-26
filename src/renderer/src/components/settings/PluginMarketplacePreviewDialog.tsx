@@ -142,7 +142,9 @@ export function PluginMarketplacePreviewDialog({
   const provenanceSource: PluginConsentSource | undefined = preview
     ? {
         kind: preview.bundled ? 'bundled' : 'marketplace',
-        reference: `${preview.source.url}#${preview.source.ref}`,
+        reference: preview.source.path
+          ? `${preview.source.url}#${preview.source.ref} › ${preview.source.path}`
+          : `${preview.source.url}#${preview.source.ref}`,
         resolvedCommit: preview.resolvedCommit,
         marketplace: {
           reference: preview.marketplaceName,

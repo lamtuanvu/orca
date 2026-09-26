@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   PLUGIN_MARKETPLACE_FILENAME,
-  pluginMarketplaceSchema,
+  parsePluginMarketplaceIndex,
   type PluginMarketplace
 } from '../../shared/plugins/plugin-marketplace'
 import { checkoutPluginGitSource } from './plugin-git-repository'
@@ -52,9 +52,15 @@ export async function readPluginMarketplaceIndex(
     chunks.push(bytes)
   }
   try {
-    return pluginMarketplaceSchema.parse(
+    const parsed = parsePluginMarketplaceIndex(
       JSON.parse(Buffer.concat(chunks, totalBytes).toString('utf8'))
     )
+    if (parsed.skippedEntries > 0) {
+      console.warn(
+        `[plugins] ${PLUGIN_MARKETPLACE_FILENAME} "${parsed.marketplace.name}": skipped ${parsed.skippedEntries} entries this Orca version cannot read`
+      )
+    }
+    return parsed.marketplace
   } catch (error) {
     throw new Error(
       `invalid ${PLUGIN_MARKETPLACE_FILENAME}: ${error instanceof Error ? error.message : String(error)}`
