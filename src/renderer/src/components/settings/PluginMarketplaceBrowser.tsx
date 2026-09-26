@@ -19,6 +19,8 @@ import {
   type PluginMarketplacePreviewMode
 } from './PluginMarketplacePreviewDialog'
 import { PluginMarketplaceSourceDialog } from './PluginMarketplaceSourceDialog'
+import type { PluginMarketplaceListingAction } from './plugin-marketplace-listing-action'
+import { hasStaleMarketplaceIndex } from './plugin-marketplace-staleness'
 
 type PluginMarketplaceBrowserProps = {
   installedPlugins: readonly PluginHostListEntry[]
@@ -55,7 +57,9 @@ export function PluginMarketplaceBrowser({
   const requestRef = useRef(0)
   const previewRequestRef = useRef(0)
 
-  const loadMarketplaceData = useCallback(async (): Promise<void> => {
+  const loadMarketplaceData = useCallback(async (): Promise<
+    PluginMarketplaceHostSourceState[] | null
+  > => {
     const requestId = ++requestRef.current
     try {
       const [nextSources, nextListings] = await Promise.all([
@@ -67,6 +71,7 @@ export function PluginMarketplaceBrowser({
         setListings(nextListings)
         setError(null)
       }
+      return nextSources
     } catch (cause) {
       if (mountedRef.current && requestId === requestRef.current) {
         setError(
@@ -79,6 +84,7 @@ export function PluginMarketplaceBrowser({
           )
         )
       }
+      return null
     } finally {
       if (mountedRef.current && requestId === requestRef.current) {
         setLoading(false)
@@ -88,7 +94,22 @@ export function PluginMarketplaceBrowser({
 
   useEffect(() => {
     mountedRef.current = true
-    void loadMarketplaceData()
+    const loadThenRefreshStale = async (): Promise<void> => {
+      const loadedSources = await loadMarketplaceData()
+      if (!mountedRef.current || !hasStaleMarketplaceIndex(loadedSources, Date.now())) {
+        return
+      }
+      try {
+        await window.api.plugins.refreshMarketplaces({})
+        if (mountedRef.current) {
+          await loadMarketplaceData()
+        }
+      } catch (cause) {
+        // Why: cached listings stay usable; the manual Refresh button reports errors.
+        console.warn('[plugins] background marketplace refresh failed:', cause)
+      }
+    }
+    void loadThenRefreshStale()
     return () => {
       mountedRef.current = false
       requestRef.current += 1
@@ -143,8 +164,10 @@ export function PluginMarketplaceBrowser({
 
   const openPreview = async (
     listing: PluginMarketplaceHostListing,
-    update: boolean
+    action: Exclude<PluginMarketplaceListingAction, 'none'>
   ): Promise<void> => {
+    // Why: switch-source previews the listing itself but applies as an in-place update.
+    const update = action === 'check-update' || action === 'update-available'
     const requestId = ++previewRequestRef.current
     setPreviewBusyKey(listing.pluginKey)
     setActionError(null)
@@ -157,7 +180,7 @@ export function PluginMarketplaceBrowser({
             pluginKey: listing.pluginKey
           })
       if (mountedRef.current && requestId === previewRequestRef.current) {
-        setPreviewMode(update ? 'update' : 'install')
+        setPreviewMode(action === 'install' ? 'install' : 'update')
         setPreview(nextPreview)
       }
     } catch (cause) {
@@ -279,7 +302,12 @@ export function PluginMarketplaceBrowser({
             {error ? (
               <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                 <p>{error}</p>
-                <Button variant="outline" size="xs" className="mt-2" onClick={loadMarketplaceData}>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="mt-2"
+                  onClick={() => void loadMarketplaceData()}
+                >
                   {translate(
                     'auto.components.settings.PluginMarketplaceBrowser.tryAgain',
                     'Try again'
@@ -349,7 +377,7 @@ export function PluginMarketplaceBrowser({
                     listing={listing}
                     installed={installedByKey.get(listing.pluginKey) ?? null}
                     busy={previewBusyKey === listing.pluginKey}
-                    onPreview={(entry, update) => void openPreview(entry, update)}
+                    onPreview={(entry, action) => void openPreview(entry, action)}
                   />
                 ))}
               </div>
@@ -361,7 +389,9 @@ export function PluginMarketplaceBrowser({
         open={sourcesOpen}
         sources={sources}
         onOpenChange={setSourcesOpen}
-        onChanged={loadMarketplaceData}
+        onChanged={async () => {
+          await loadMarketplaceData()
+        }}
       />
       <PluginMarketplacePreviewDialog
         key={preview ? `${preview.pluginKey}:${preview.contentHash}` : 'closed'}

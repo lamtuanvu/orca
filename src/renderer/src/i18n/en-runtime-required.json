@@ -1378,6 +1378,10 @@
         "PluginInstallDialog": {
           "localHelp": "Full path to a folder containing orca-plugin.json on this computer. The path is used exactly as entered."
         },
+        "PluginMarketplaceSourceDialog": {
+          "refDescription": "Choose a branch, tag, or commit. Every fetched index is recorded at an exact commit.",
+          "urlDescription": "Use an HTTPS or SSH repository URL containing orca-marketplace.json."
+        },
         "PluginRemoveDialog": {
           "description": "This removes {{value0}} and its stored plugin data from this computer. You can install it again later."
         },

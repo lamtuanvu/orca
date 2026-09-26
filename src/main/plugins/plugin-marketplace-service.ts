@@ -6,6 +6,7 @@ import {
   isOfficialPluginIdentity,
   isMarketplaceListingSupported,
   pluginMarketplaceGitSourceSchema,
+  resolveMarketplaceCheckoutSource,
   type PluginMarketplaceEntry,
   type PluginMarketplaceGitSource
 } from '../../shared/plugins/plugin-marketplace'
@@ -266,11 +267,12 @@ export class PluginMarketplaceService {
     snapshot: PluginMarketplaceCachedSnapshot,
     entry: PluginMarketplaceEntry
   ): PluginMarketplaceListing {
+    const checkout = resolveMarketplaceCheckoutSource(source.source, entry.source)
     const official =
       isOfficialMarketplaceGitSource(source.source.url) &&
       snapshot.marketplace.owner.toLowerCase() === OFFICIAL_MARKETPLACE_OWNER &&
       isOfficialPluginIdentity(entry.id) &&
-      isOfficialOrganizationGitSource(entry.source.url)
+      isOfficialOrganizationGitSource(checkout.url)
     const blocked = this.getKillListEntry(entry.id)
     return {
       marketplaceSourceId: source.id,
@@ -278,7 +280,7 @@ export class PluginMarketplaceService {
       marketplaceOwner: snapshot.marketplace.owner,
       marketplaceCommit: snapshot.marketplaceCommit,
       pluginKey: entry.id,
-      source: entry.source,
+      source: checkout,
       ...(entry.description ? { description: entry.description } : {}),
       categories: entry.categories,
       official,

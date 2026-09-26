@@ -201,4 +201,87 @@ describe('PluginMarketplaceInstaller', () => {
       resolvedCommit: 'a'.repeat(40)
     })
   })
+
+  describe('plugins hosted inside the marketplace repository', () => {
+    const MARKETPLACE_URL = 'https://git.example/team/plugins.git'
+    const INDEX_COMMIT = 'f'.repeat(40)
+
+    async function setupInRepo() {
+      const root = await tempRoot()
+      const service = new PluginMarketplaceService({
+        pluginsDataDir: join(root, 'plugins-data'),
+        fetcher: async () => ({
+          marketplaceCommit: INDEX_COMMIT,
+          marketplace: {
+            name: 'Team',
+            owner: 'team',
+            plugins: [
+              {
+                id: 'community.notes',
+                source: { kind: 'path', path: 'plugins/notes' },
+                categories: []
+              }
+            ]
+          }
+        })
+      })
+      const added = await service.addSource({ kind: 'git', url: MARKETPLACE_URL, ref: 'main' })
+      git.checkout.mockImplementation(async ({ destination }: { destination: string }) => {
+        await writeCurrentPlugin(join(destination, 'plugins', 'notes'))
+        await writeFile(join(destination, 'orca-marketplace.json'), '{}')
+        return git.commit
+      })
+      return {
+        root,
+        sourceId: added.id,
+        installer: new PluginMarketplaceInstaller({
+          marketplace: service,
+          userDataPath: root,
+          hostVersion: '1.4.0'
+        })
+      }
+    }
+
+    it('installs the folder at the refreshed index commit and records its path', async () => {
+      git.commit = INDEX_COMMIT
+      const { root, installer, sourceId } = await setupInRepo()
+
+      const preview = await installer.preview(sourceId, 'community.notes')
+      expect(preview.source).toEqual({
+        kind: 'git',
+        url: MARKETPLACE_URL,
+        ref: 'main',
+        path: 'plugins/notes'
+      })
+      expect(git.checkout).toHaveBeenCalledWith(
+        expect.objectContaining({ url: MARKETPLACE_URL, ref: 'main' })
+      )
+      await expect(installer.install(preview)).resolves.toMatchObject({ ok: true })
+
+      const lock = await readPluginLockfile(join(root, 'plugins'))
+      expect(lock.plugins['community.notes']?.source).toMatchObject({
+        kind: 'marketplace',
+        plugin: { url: MARKETPLACE_URL, ref: 'main', path: 'plugins/notes' }
+      })
+      const installedFiles = await readFile(
+        join(
+          root,
+          'plugins',
+          'community.notes',
+          lock.plugins['community.notes']!.contentHash,
+          'payload.txt'
+        ),
+        'utf8'
+      )
+      expect(installedFiles).toBe('first')
+    })
+
+    it('refuses to preview when the branch moved past the refreshed index', async () => {
+      git.commit = 'e'.repeat(40)
+      const { installer, sourceId } = await setupInRepo()
+      await expect(installer.preview(sourceId, 'community.notes')).rejects.toThrow(
+        /marketplace changed since it was last refreshed/
+      )
+    })
+  })
 })
