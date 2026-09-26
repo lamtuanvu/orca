@@ -4,6 +4,7 @@ import {
   FileText,
   Loader2,
   MoreHorizontal,
+  RefreshCw,
   RotateCcw,
   Trash2
 } from 'lucide-react'
@@ -36,6 +37,7 @@ type PluginSettingsRowProps = {
   onReview: (pluginKey: string) => void
   onToggleEnabled: (plugin: PluginHostListEntry) => void
   onToggleLogs: (pluginKey: string) => void
+  onUpdateRequest: (pluginKey: string) => void
   onRollbackRequest: (pluginKey: string) => void
   onRemoveRequest: (pluginKey: string) => void
 }
@@ -135,6 +137,7 @@ export function PluginSettingsRow({
   onReview,
   onToggleEnabled,
   onToggleLogs,
+  onUpdateRequest,
   onRollbackRequest,
   onRemoveRequest
 }: PluginSettingsRowProps): React.JSX.Element {
@@ -145,6 +148,8 @@ export function PluginSettingsRow({
     plugin.status === 'restarting' ||
     plugin.status === 'idle' ||
     plugin.status === 'errored'
+  // Why: only installed (non-dev) bytes have a source; bundled plugins update with Orca.
+  const updatable = Boolean(plugin.source) && !plugin.bundled
   const switchDisabled =
     busy || needsReview || plugin.status === 'invalid' || Boolean(plugin.blockedByKillList)
 
@@ -286,11 +291,17 @@ export function PluginSettingsRow({
                   ? translate('auto.components.settings.PluginSettingsRow.hideLogs', 'Hide logs')
                   : translate('auto.components.settings.PluginSettingsRow.viewLogs', 'View logs')}
               </DropdownMenuItem>
-              {plugin.source?.kind === 'marketplace' ? (
-                <DropdownMenuItem onSelect={() => onRollbackRequest(plugin.pluginKey)}>
-                  <RotateCcw />
-                  {translate('auto.components.settings.PluginSettingsRow.rollback', 'Roll back')}
-                </DropdownMenuItem>
+              {updatable ? (
+                <>
+                  <DropdownMenuItem onSelect={() => onUpdateRequest(plugin.pluginKey)}>
+                    <RefreshCw />
+                    {translate('auto.components.settings.PluginSettingsRow.update', 'Update…')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onRollbackRequest(plugin.pluginKey)}>
+                    <RotateCcw />
+                    {translate('auto.components.settings.PluginSettingsRow.rollback', 'Roll back')}
+                  </DropdownMenuItem>
+                </>
               ) : null}
               {!plugin.isDev && !plugin.bundled ? (
                 <DropdownMenuItem

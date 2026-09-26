@@ -8,6 +8,10 @@ import type { PluginLanguagePackRegistration } from '../../shared/plugins/plugin
 import type { PluginChangeEvent } from '../../shared/plugins/plugin-change-event'
 import type { PluginManifest } from '../../shared/plugins/plugin-manifest'
 import type { PluginMarketplaceGitSource } from '../../shared/plugins/plugin-marketplace'
+import type {
+  PluginDirectInstallRequestSource,
+  PluginUpdatePreview
+} from '../../shared/plugins/plugin-update-preview'
 
 /** Panel contribution as surfaced by the main-process plugin service. */
 export type PluginHostPanel = {
@@ -67,8 +71,11 @@ export type PluginHostListEntry = {
   restarts: number
   blockedByKillList?: { reason: string; advisoryUrl?: string }
   source?: {
-    kind: 'local-path' | 'git' | 'marketplace' | 'bundled'
+    /** Older hosts never send `archive`; newer hosts may add kinds, so treat unknown as community. */
+    kind: 'local-path' | 'archive' | 'git' | 'marketplace' | 'bundled'
     reference: string
+    /** Requested git ref (git and marketplace sources). */
+    ref?: string
     resolvedCommit: string | null
     contentHash: string
     marketplace?: { reference: string; resolvedCommit: string }
@@ -81,9 +88,8 @@ export type PluginHostLogLine = {
   line: string
 }
 
-export type PluginHostInstallSource =
-  | { kind: 'local-path'; path: string }
-  | { kind: 'git'; url: string; ref: string }
+export type PluginHostInstallSource = PluginDirectInstallRequestSource
+export type { PluginUpdatePreview } from '../../shared/plugins/plugin-update-preview'
 
 export type PluginHostInstallResult =
   | {
@@ -184,8 +190,21 @@ export type PluginsApi = {
   previewMarketplaceUpdate: (args: {
     pluginKey: string
   }) => Promise<PluginMarketplaceHostInstallPreview>
-  rollbackMarketplacePlugin: (args: { pluginKey: string }) => Promise<PluginHostInstallResult>
-  remove: (args: { pluginKey: string }) => Promise<PluginHostListEntry[]>
+  /** Opens a native picker on the machine running Orca; null when cancelled. */
+  pickInstallSource: (args: { kind: 'folder' | 'archive' }) => Promise<string | null>
+  /** Reviews an in-place update of an installed plugin without changing anything. */
+  previewUpdate: (args: {
+    pluginKey: string
+    source: PluginHostInstallSource
+  }) => Promise<PluginUpdatePreview>
+  /** Replaces the installed version in place; plugin data and one rollback version are kept. */
+  update: (args: {
+    pluginKey: string
+    source: PluginHostInstallSource
+    expectedContentHash: string
+  }) => Promise<PluginHostInstallResult>
+  rollback: (args: { pluginKey: string }) => Promise<PluginHostInstallResult>
+  remove: (args: { pluginKey: string; keepData?: boolean }) => Promise<PluginHostListEntry[]>
   getLogs: (args: { pluginKey: string }) => Promise<PluginHostLogLine[]>
   /** Re-discovers after settings edits (feature flag, dev paths). */
   refresh: () => Promise<PluginHostListEntry[]>

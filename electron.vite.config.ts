@@ -13,6 +13,8 @@ const BUNDLED_MAIN_DEPENDENCIES = new Set([
   '@xterm/headless',
   '@xterm/addon-serialize',
   'tldts',
+  // Why: pure-JS plugin zip reader; bundling avoids a packaged node_modules root.
+  'yauzl',
   // Why: Windows NSIS deploys app.asar before external resources; bootstrap must
   // not race the later resources/node_modules copy.
   'zod'

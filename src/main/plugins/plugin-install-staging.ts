@@ -122,6 +122,8 @@ export async function installStagedPluginTree(input: {
   source: PluginInstallSource
   resolvedCommit: string | null
   expectedPluginKey?: string
+  /** Bytes the user reviewed in an update preview; a mismatch fails closed. */
+  expectedContentHash?: string
   /** Trusted bundled bytes may restore an immutable directory damaged on disk. */
   repairCorruptedVersion?: boolean
   blockedPluginReason?: (pluginKey: string) => string | null
@@ -133,6 +135,9 @@ export async function installStagedPluginTree(input: {
   })
   if (!sourceInspection.ok) {
     return sourceInspection
+  }
+  if (input.expectedContentHash && sourceInspection.contentHash !== input.expectedContentHash) {
+    return { ok: false, error: 'plugin source changed after preview; review the update again' }
   }
   const trustError = pluginInstallTrustError(sourceInspection.pluginKey, input.source)
   if (trustError) {

@@ -67,7 +67,7 @@ export function usePluginMarketplaceLifecycle({
     setBusyPluginKeys((current) => new Set(current).add(pluginKey))
     setRollbackError(null)
     try {
-      const result = await window.api.plugins.rollbackMarketplacePlugin({ pluginKey })
+      const result = await window.api.plugins.rollback({ pluginKey })
       if (!result.ok) {
         throw new Error(result.error)
       }
@@ -76,7 +76,7 @@ export function usePluginMarketplaceLifecycle({
         setRollbackPluginId(null)
       }
     } catch (cause) {
-      console.warn('[plugins] marketplace rollback failed:', cause)
+      console.warn('[plugins] rollback failed:', cause)
       if (mountedRef.current) {
         setRollbackError(
           translate(

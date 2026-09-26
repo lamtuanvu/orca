@@ -4,7 +4,7 @@ import {
 } from '../../shared/plugins/plugin-capabilities'
 import { needsReconsent } from '../../shared/plugins/plugin-consent-state'
 import { pluginPanelTabKey } from '../../shared/plugins/plugin-manifest'
-import type { PluginLockfile } from '../../shared/plugins/plugin-install-lockfile'
+import type { PluginLockEntry, PluginLockfile } from '../../shared/plugins/plugin-install-lockfile'
 import { isInvalidDiscoveredPlugin } from './plugin-discovery'
 import type { PluginService } from './plugin-service'
 import { listPluginVmRecipeCommands } from '../../shared/plugins/plugin-vm-recipe-artifact'
@@ -74,8 +74,9 @@ export type PluginListEntry = {
   restarts: number
   blockedByKillList?: { reason: string; advisoryUrl?: string }
   source?: {
-    kind: 'local-path' | 'git' | 'marketplace' | 'bundled'
+    kind: 'local-path' | 'archive' | 'git' | 'marketplace' | 'bundled'
     reference: string
+    ref?: string
     resolvedCommit: string | null
     contentHash: string
     marketplace?: { reference: string; resolvedCommit: string }
@@ -204,14 +205,7 @@ export async function buildPluginList(
           ? {
               source: {
                 kind: lockEntry.source.kind,
-                reference:
-                  lockEntry.source.kind === 'local-path'
-                    ? lockEntry.source.path
-                    : lockEntry.source.kind === 'git'
-                      ? lockEntry.source.url
-                      : lockEntry.source.kind === 'marketplace'
-                        ? lockEntry.source.plugin.url
-                        : `bundled:${lockEntry.source.bundleId}`,
+                ...projectSourceReference(lockEntry.source),
                 resolvedCommit: lockEntry.resolvedCommit,
                 contentHash: lockEntry.contentHash,
                 ...(lockEntry.source.kind === 'marketplace'
@@ -228,4 +222,27 @@ export async function buildPluginList(
       }
     }
   )
+}
+
+function projectSourceReference(source: PluginLockEntry['source']): {
+  reference: string
+  ref?: string
+} {
+  switch (source.kind) {
+    case 'local-path':
+      return { reference: source.path }
+    case 'archive':
+      return { reference: source.fileName }
+    case 'git':
+      return { reference: source.url, ref: source.ref }
+    case 'marketplace':
+      return {
+        reference: source.plugin.path
+          ? `${source.plugin.url} › ${source.plugin.path}`
+          : source.plugin.url,
+        ref: source.plugin.ref
+      }
+    case 'bundled':
+      return { reference: `bundled:${source.bundleId}` }
+  }
 }

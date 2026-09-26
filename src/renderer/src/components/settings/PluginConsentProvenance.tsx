@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 /** Review dialogs lead with trust, not a metadata table: badge up front, details on demand. */
 
 export type PluginConsentSource = {
-  kind: 'local-path' | 'git' | 'marketplace' | 'bundled'
+  kind: 'local-path' | 'archive' | 'git' | 'marketplace' | 'bundled'
   reference: string
   resolvedCommit: string | null
   marketplace?: { reference: string; resolvedCommit: string }
@@ -59,6 +59,13 @@ function provenanceBadge(props: PluginConsentProvenanceProps): React.JSX.Element
       </Badge>
     )
   }
+  if (props.source?.kind === 'archive') {
+    return (
+      <Badge variant="outline">
+        {translate('auto.components.settings.PluginConsentProvenance.archive', 'Zip file')}
+      </Badge>
+    )
+  }
   if (props.source?.kind === 'local-path') {
     return (
       <Badge variant="outline">
@@ -104,10 +111,15 @@ export function PluginConsentProvenance(props: PluginConsentProvenanceProps): Re
               )}
               value={
                 pinned ??
-                translate(
-                  'auto.components.settings.PluginConsentProvenance.localCommit',
-                  'Local folder — no commit'
-                )
+                (source.kind === 'archive'
+                  ? translate(
+                      'auto.components.settings.PluginConsentProvenance.archiveCommit',
+                      'Zip file — no commit'
+                    )
+                  : translate(
+                      'auto.components.settings.PluginConsentProvenance.localCommit',
+                      'Local folder — no commit'
+                    ))
               }
               fullValue={source.resolvedCommit ?? undefined}
             />

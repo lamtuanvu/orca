@@ -1375,6 +1375,12 @@
           "fullCoverage_one": "All 1 detected agent has the skill.",
           "fullCoverage_other": "All {{value0}} detected agents have the skill."
         },
+        "PluginInstallDialog": {
+          "localHelp": "Full path to a folder containing orca-plugin.json on this computer. The path is used exactly as entered."
+        },
+        "PluginRemoveDialog": {
+          "description": "This removes {{value0}} and its stored plugin data from this computer. You can install it again later."
+        },
         "PrivacyPane": {
           "afec8b03be": "ci"
         },

@@ -48,4 +48,15 @@ describe('parsePluginInstallSource', () => {
       source: { kind: 'local-path', path: 'C:\\plugins\\demo' }
     })
   })
+
+  it('accepts a zip path and requires one', () => {
+    expect(parsePluginInstallSource('archive', ' /Downloads/demo.zip ')).toEqual({
+      ok: true,
+      source: { kind: 'archive', path: '/Downloads/demo.zip' }
+    })
+    expect(parsePluginInstallSource('archive', '  ')).toEqual({
+      ok: false,
+      reason: 'missing-archive-path'
+    })
+  })
 })

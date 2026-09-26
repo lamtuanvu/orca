@@ -8,6 +8,7 @@ import { PluginConsentDialog } from './PluginConsentDialog'
 import { PluginInstallDialog } from './PluginInstallDialog'
 import { PluginRemoveDialog } from './PluginRemoveDialog'
 import { PluginRollbackDialog } from './PluginRollbackDialog'
+import { PluginUpdateDialog } from './PluginUpdateDialog'
 import { PluginSettingsOverview } from './PluginSettingsOverview'
 import { getPluginsSectionPresentation } from './plugins-search'
 import { SettingsSection } from './SettingsSection'
@@ -36,6 +37,7 @@ export function PluginsSettingsSection({
   const [installOpen, setInstallOpen] = useState(false)
   const [consentPluginId, setConsentPluginId] = useState<string | null>(null)
   const [removePluginId, setRemovePluginId] = useState<string | null>(null)
+  const [updatePluginId, setUpdatePluginId] = useState<string | null>(null)
   const [busyPluginKeys, setBusyPluginKeys] = useState<Set<string>>(() => new Set())
   const [featureBusy, setFeatureBusy] = useState(false)
   const [devPathsBusy, setDevPathsBusy] = useState(false)
@@ -50,6 +52,7 @@ export function PluginsSettingsSection({
     // Why: accepted discovery results own installed-plugin identity and invalidate stale UI state.
     setConsentPluginId((current) => (current && installedPluginKeys.has(current) ? current : null))
     setRemovePluginId((current) => (current && installedPluginKeys.has(current) ? current : null))
+    setUpdatePluginId((current) => (current && installedPluginKeys.has(current) ? current : null))
     setBusyPluginKeys(
       (current) => new Set([...current].filter((pluginKey) => installedPluginKeys.has(pluginKey)))
     )
@@ -106,6 +109,7 @@ export function PluginsSettingsSection({
       setInstallOpen(false)
       setConsentPluginId(null)
       setRemovePluginId(null)
+      setUpdatePluginId(null)
       setBusyPluginKeys(new Set())
       setFeatureBusy(false)
       setDevPathsBusy(false)
@@ -159,6 +163,7 @@ export function PluginsSettingsSection({
     plugins.find((plugin) => plugin.pluginKey === consentPluginId) ?? null
   const consentPlugin = selectedConsentPlugin?.consentFingerprint ? selectedConsentPlugin : null
   const removePlugin = plugins.find((plugin) => plugin.pluginKey === removePluginId) ?? null
+  const updatePlugin = plugins.find((plugin) => plugin.pluginKey === updatePluginId) ?? null
 
   const toggleFeature = async (): Promise<void> => {
     setFeatureBusy(true)
@@ -250,10 +255,10 @@ export function PluginsSettingsSection({
     }
   }
 
-  const remove = async (pluginKey: string): Promise<void> => {
+  const remove = async (pluginKey: string, keepData: boolean): Promise<void> => {
     setBusyPluginKeys((current) => new Set(current).add(pluginKey))
     try {
-      const nextPlugins = await window.api.plugins.remove({ pluginKey })
+      const nextPlugins = await window.api.plugins.remove({ pluginKey, keepData })
       applyCompletedMutation(nextPlugins)
       if (mountedRef.current) {
         setRemovePluginId(null)
@@ -334,21 +339,33 @@ export function PluginsSettingsSection({
         onToggleEnabled={(entry) => void toggleEnabled(entry)}
         onToggleLogs={pluginLogs.toggleLogs}
         onMarketplaceInstalled={marketplaceLifecycle.reloadAfterMutation}
+        onUpdateRequest={setUpdatePluginId}
         onRollbackRequest={marketplaceLifecycle.requestRollback}
         onRemoveRequest={setRemovePluginId}
         onUpdateDevPaths={updateDevPaths}
       />
       <PluginInstallDialog open={installOpen} onOpenChange={setInstallOpen} onInstall={install} />
+      <PluginUpdateDialog
+        key={`update:${updatePlugin?.pluginKey ?? ''}`}
+        plugin={updatePlugin}
+        onCancel={() => setUpdatePluginId(null)}
+        onUpdated={async (pluginKey) => {
+          setUpdatePluginId(null)
+          await marketplaceLifecycle.reloadAfterMutation(pluginKey)
+        }}
+      />
       <PluginConsentDialog
         key={consentPlugin?.pluginKey ?? 'closed'}
         plugin={consentPlugin}
         onDecision={decideConsent}
       />
       <PluginRemoveDialog
+        // Why: remount per plugin so "keep data" never carries over to the next removal.
+        key={`remove:${removePlugin?.pluginKey ?? ''}`}
         plugin={removePlugin}
         busy={Boolean(removePlugin && busyPluginKeys.has(removePlugin.pluginKey))}
         onCancel={() => setRemovePluginId(null)}
-        onConfirm={(pluginKey) => void remove(pluginKey)}
+        onConfirm={(pluginKey, keepData) => void remove(pluginKey, keepData)}
       />
       <PluginRollbackDialog
         plugin={marketplaceLifecycle.rollbackPlugin}
