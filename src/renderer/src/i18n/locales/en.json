@@ -11587,7 +11587,9 @@
           "sourceLabel": "Source",
           "commit": "Pinned commit",
           "localCommit": "Local folder — no commit",
-          "indexCommit": "Index commit"
+          "indexCommit": "Index commit",
+          "archive": "Zip file",
+          "archiveCommit": "Zip file — no commit"
         },
         "PluginDevelopmentSection": {
           "saveFailed": "Could not save development plugin paths.",
@@ -11618,7 +11620,14 @@
           "cancel": "Cancel",
           "installing": "Installing…",
           "install": "Install",
-          "installFailed": "Plugin installation failed. Check the source and try again."
+          "installFailed": "Plugin installation failed. Check the source and try again.",
+          "archiveRequired": "Choose a plugin zip file.",
+          "archivePlaceholder": "/Users/you/Downloads/my-plugin.zip",
+          "browse": "Browse…",
+          "archiveTab": "Zip file",
+          "localCopyHelp": "A folder containing orca-plugin.json on this computer. Orca copies it; later edits to the folder need an update.",
+          "archiveLabel": "Zip file",
+          "archiveHelp": "A .zip with orca-plugin.json at its top level or inside one top-level folder, such as a Git host \"Download ZIP\" file."
         },
         "PluginKeybindingConsentPreview": {
           "heading": "Keyboard shortcuts",
@@ -11709,7 +11718,10 @@
           "title": "Remove plugin?",
           "description": "This removes {{value0}} and its stored plugin data from this computer. You can install it again later.",
           "cancel": "Cancel",
-          "remove": "Remove plugin"
+          "remove": "Remove plugin",
+          "descriptionWithoutData": "This removes {{value0}} from this computer. You can install it again later.",
+          "keepData": "Keep plugin data",
+          "keepDataHelp": "Its stored data and settings stay on this computer and come back if you install it again. Otherwise they are deleted."
         },
         "PluginRollbackDialog": {
           "title": "Roll back plugin?",
@@ -11763,7 +11775,8 @@
           "remove": "Remove",
           "disableLabel": "Disable {{value0}}",
           "enableLabel": "Enable {{value0}}",
-          "invalidPluginError": "The plugin manifest or installed files are invalid. Fix the plugin, then refresh."
+          "invalidPluginError": "The plugin manifest or installed files are invalid. Fix the plugin, then refresh.",
+          "update": "Update…"
         },
         "PluginVmRecipeConsentPreview": {
           "create": "Create",
@@ -12215,6 +12228,18 @@
           "usageLabel": "Usage",
           "noAllowance": "Cursor reported no usage allowance for this account.",
           "staleUsage": "Last known usage — the latest refresh failed: {{reason}}"
+        },
+        "PluginUpdateDialog": {
+          "sameContent": "These exact files are already installed. Nothing will change.",
+          "downgrade": "This is an older version than the one installed.",
+          "permissionsChanged": "Its permissions changed. The plugin stays off until you review and approve them again.",
+          "dataKept": "Plugin data and settings are kept. You can roll back to the current version afterwards.",
+          "title": "Update {{value0}}",
+          "description": "Replace the installed version from a folder, zip file, or Git ref. The new files must be the same plugin.",
+          "back": "Back",
+          "cancel": "Cancel",
+          "apply": "Update plugin",
+          "review": "Review update"
         }
       },
       "right": {

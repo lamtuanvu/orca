@@ -1,13 +1,8 @@
 import { mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { isQualifiedPluginKey } from '../../shared/plugins/plugin-manifest'
 import {
-  PLUGIN_MANIFEST_FILENAME,
-  isQualifiedPluginKey
-} from '../../shared/plugins/plugin-manifest'
-import {
-  isAllowedPluginGitUrl,
   PLUGIN_COMMIT_PATTERN,
   PLUGIN_CONTENT_HASH_PATTERN,
   pluginInstallSourceSchema,
@@ -23,6 +18,8 @@ import { checkoutPluginGitSource } from './plugin-git-repository'
 import { readPluginCurrentPointer } from './plugin-current-pointer'
 import { readPluginInstallProvenance } from './plugin-install-provenance'
 import { publishPluginInstall } from './plugin-install-publication'
+import { serializePluginMutation } from './plugin-mutation-queue'
+import { installPluginFromSource } from './plugin-source-install'
 
 export type { PluginInstallResult } from './plugin-install-staging'
 
@@ -33,7 +30,8 @@ export {
 } from './plugin-install-lockfile-store'
 
 /**
- * Plugin installer, v0 sources: local path + git URL `#ref`. Git operations
+ * Plugin installer. Direct sources (folder, zip, git URL `#ref`) stage through
+ * plugin-source-install; marketplace and bundled sources stage here. Git operations
  * shell out to SYSTEM git (execFile, argv arrays — never a shell string, and
  * never a vendored checkout: private repos must work with the user's
  * existing credential helpers and SSH remotes). No script execution during
@@ -43,46 +41,17 @@ export {
  * swap; the previous version dir is kept for one-step rollback.
  */
 
-const pluginMutationChains = new Map<string, Promise<void>>()
-
-async function serializePluginMutation<T>(
-  pluginsDir: string,
-  operation: () => Promise<T>
-): Promise<T> {
-  const previous = pluginMutationChains.get(pluginsDir) ?? Promise.resolve()
-  const run = previous.catch(() => undefined).then(operation)
-  const settled = run.then(
-    () => undefined,
-    () => undefined
-  )
-  pluginMutationChains.set(pluginsDir, settled)
-  try {
-    return await run
-  } finally {
-    if (pluginMutationChains.get(pluginsDir) === settled) {
-      pluginMutationChains.delete(pluginsDir)
-    }
-  }
-}
-
 export async function installPluginFromLocalPath(input: {
   pluginsDir: string
   sourcePath: string
   hostVersion: string
   blockedPluginReason?: (pluginKey: string) => string | null
 }): Promise<PluginInstallResult> {
-  return serializePluginMutation(input.pluginsDir, async () => {
-    if (!existsSync(join(input.sourcePath, PLUGIN_MANIFEST_FILENAME))) {
-      return { ok: false, error: `no ${PLUGIN_MANIFEST_FILENAME} found in ${input.sourcePath}` }
-    }
-    return installStagedPluginTree({
-      pluginsDir: input.pluginsDir,
-      stagingDir: input.sourcePath,
-      hostVersion: input.hostVersion,
-      source: { kind: 'local-path', path: input.sourcePath },
-      resolvedCommit: null,
-      blockedPluginReason: input.blockedPluginReason
-    })
+  return installPluginFromSource({
+    pluginsDir: input.pluginsDir,
+    source: { kind: 'local-path', path: input.sourcePath },
+    hostVersion: input.hostVersion,
+    blockedPluginReason: input.blockedPluginReason
   })
 }
 
@@ -115,32 +84,11 @@ export async function installPluginFromGit(input: {
   hostVersion: string
   blockedPluginReason?: (pluginKey: string) => string | null
 }): Promise<PluginInstallResult> {
-  if (!isAllowedPluginGitUrl(input.url)) {
-    return { ok: false, error: 'plugin Git URL must use HTTPS or SSH' }
-  }
-  return serializePluginMutation(input.pluginsDir, async () => {
-    const stagingDir = await mkdtemp(join(tmpdir(), 'orca-plugin-install-'))
-    try {
-      const ref = input.ref.trim()
-      const resolvedCommit = await checkoutPluginGitSource({
-        url: input.url,
-        ref,
-        destination: stagingDir,
-        workingDirectory: tmpdir()
-      })
-      return await installStagedPluginTree({
-        pluginsDir: input.pluginsDir,
-        stagingDir,
-        hostVersion: input.hostVersion,
-        source: { kind: 'git', url: input.url, ref },
-        resolvedCommit,
-        blockedPluginReason: input.blockedPluginReason
-      })
-    } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) }
-    } finally {
-      await rm(stagingDir, { recursive: true, force: true })
-    }
+  return installPluginFromSource({
+    pluginsDir: input.pluginsDir,
+    source: { kind: 'git', url: input.url, ref: input.ref },
+    hostVersion: input.hostVersion,
+    blockedPluginReason: input.blockedPluginReason
   })
 }
 
@@ -268,11 +216,12 @@ export async function rollbackInstalledPlugin(input: {
   })
 }
 
-/** Removes the install dir, the plugin's data dir, and the lock entry. */
+/** Removes the install dir, the lock entry, and (unless kept) the plugin's data dir. */
 export async function removeInstalledPlugin(input: {
   pluginsDir: string
   pluginsDataDir: string
   pluginKey: string
+  keepData?: boolean
 }): Promise<void> {
   await serializePluginMutation(input.pluginsDir, async () => {
     if (!isQualifiedPluginKey(input.pluginKey)) {
@@ -283,7 +232,9 @@ export async function removeInstalledPlugin(input: {
       throw new Error(`cannot remove protected plugin ${input.pluginKey}`)
     }
     await removeResolvedPluginDirectory(input.pluginsDir, input.pluginKey)
-    await removeResolvedPluginDirectory(input.pluginsDataDir, input.pluginKey)
+    if (!input.keepData) {
+      await removeResolvedPluginDirectory(input.pluginsDataDir, input.pluginKey)
+    }
     await writePluginLockfile(
       input.pluginsDir,
       removePluginLock(await readPluginLockfile(input.pluginsDir), input.pluginKey)

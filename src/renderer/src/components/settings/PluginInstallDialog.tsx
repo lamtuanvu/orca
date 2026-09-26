@@ -11,11 +11,14 @@ import {
   DialogHeader,
   DialogTitle
 } from '../ui/dialog'
-import { Input } from '../ui/input'
-import { Label } from '../ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
-import { parsePluginInstallSource } from './plugin-install-source'
+import { parsePluginInstallSource, type PluginInstallSourceKind } from './plugin-install-source'
 import { pluginInstallErrorMessage } from './plugin-error-presentation'
+import {
+  EMPTY_PLUGIN_INSTALL_SOURCE_VALUES,
+  PluginInstallSourceFields,
+  installValidationMessage,
+  type PluginInstallSourceValues
+} from './PluginInstallSourceFields'
 
 type PluginInstallDialogProps = {
   open: boolean
@@ -23,44 +26,20 @@ type PluginInstallDialogProps = {
   onInstall: (source: PluginHostInstallSource) => Promise<void>
 }
 
-function installValidationMessage(reason: string): string {
-  switch (reason) {
-    case 'missing-local-path':
-      return translate(
-        'auto.components.settings.PluginInstallDialog.localRequired',
-        'Enter the plugin folder path.'
-      )
-    case 'missing-git-url':
-      return translate(
-        'auto.components.settings.PluginInstallDialog.gitUrlRequired',
-        'Enter a repository URL.'
-      )
-    case 'invalid-git-url':
-      return translate(
-        'auto.components.settings.PluginInstallDialog.gitUrlInvalid',
-        'Use an HTTPS or SSH Git URL. Executable Git helper protocols are not allowed.'
-      )
-    default:
-      return translate(
-        'auto.components.settings.PluginInstallDialog.gitRefRequired',
-        'Add an explicit #ref (tag or commit) so the install is pinned — for example #v0.1.0.'
-      )
-  }
-}
-
 export function PluginInstallDialog({
   open,
   onOpenChange,
   onInstall
 }: PluginInstallDialogProps): React.JSX.Element {
-  const [kind, setKind] = useState<'local-path' | 'git'>('local-path')
-  const [localPath, setLocalPath] = useState('')
-  const [gitUrl, setGitUrl] = useState('')
+  const [kind, setKind] = useState<PluginInstallSourceKind>('local-path')
+  const [values, setValues] = useState<PluginInstallSourceValues>(
+    EMPTY_PLUGIN_INSTALL_SOURCE_VALUES
+  )
   const [error, setError] = useState<string | null>(null)
   const [installing, setInstalling] = useState(false)
 
   const submit = async (): Promise<void> => {
-    const parsed = parsePluginInstallSource(kind, kind === 'git' ? gitUrl : localPath)
+    const parsed = parsePluginInstallSource(kind, values[kind])
     if (!parsed.ok) {
       setError(installValidationMessage(parsed.reason))
       return
@@ -98,82 +77,20 @@ export function PluginInstallDialog({
             void submit()
           }}
         >
-          <Tabs
-            value={kind}
-            onValueChange={(value) => {
-              setKind(value as 'local-path' | 'git')
+          <PluginInstallSourceFields
+            kind={kind}
+            values={values}
+            error={error}
+            errorId="plugin-install-error"
+            disabled={installing}
+            onKindChange={(nextKind) => {
+              setKind(nextKind)
               setError(null)
             }}
-          >
-            <TabsList
-              aria-label={translate(
-                'auto.components.settings.PluginInstallDialog.source',
-                'Install source'
-              )}
-            >
-              <TabsTrigger value="local-path">
-                {translate('auto.components.settings.PluginInstallDialog.localTab', 'Local folder')}
-              </TabsTrigger>
-              <TabsTrigger value="git">
-                {translate('auto.components.settings.PluginInstallDialog.gitTab', 'Git URL')}
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="local-path" className="space-y-2 pt-2">
-              <Label htmlFor="plugin-local-path">
-                {translate(
-                  'auto.components.settings.PluginInstallDialog.localLabel',
-                  'Plugin folder path'
-                )}
-              </Label>
-              <Input
-                id="plugin-local-path"
-                className="font-mono text-xs"
-                value={localPath}
-                onChange={(event) => setLocalPath(event.target.value)}
-                placeholder={translate(
-                  'auto.components.settings.PluginInstallDialog.localPlaceholder',
-                  '/Users/you/plugins/my-plugin or C:\\Users\\you\\plugins\\my-plugin'
-                )}
-                spellCheck={false}
-                aria-invalid={kind === 'local-path' && Boolean(error)}
-                aria-describedby={error ? 'plugin-install-error' : undefined}
-                autoFocus
-              />
-              <p className="text-xs leading-5 text-muted-foreground">
-                {translate(
-                  'auto.components.settings.PluginInstallDialog.localHelp',
-                  'Full path to a folder containing orca-plugin.json on this computer. The path is used exactly as entered.'
-                )}
-              </p>
-            </TabsContent>
-            <TabsContent value="git" className="space-y-2 pt-2">
-              <Label htmlFor="plugin-git-url">
-                {translate(
-                  'auto.components.settings.PluginInstallDialog.gitLabel',
-                  'Repository URL with #ref'
-                )}
-              </Label>
-              <Input
-                id="plugin-git-url"
-                className="font-mono text-xs"
-                value={gitUrl}
-                onChange={(event) => setGitUrl(event.target.value)}
-                placeholder={translate(
-                  'auto.components.settings.PluginInstallDialog.gitPlaceholder',
-                  'https://git.example/acme/orca-notes#v0.1.0'
-                )}
-                spellCheck={false}
-                aria-invalid={kind === 'git' && Boolean(error)}
-                aria-describedby={error ? 'plugin-install-error' : undefined}
-              />
-              <p className="text-xs leading-5 text-muted-foreground">
-                {translate(
-                  'auto.components.settings.PluginInstallDialog.gitHelp',
-                  'Append an explicit #ref — a tag or commit — so the install is pinned. Works with GitHub, GitLab, and any git host.'
-                )}
-              </p>
-            </TabsContent>
-          </Tabs>
+            onValueChange={(sourceKind, value) =>
+              setValues((current) => ({ ...current, [sourceKind]: value }))
+            }
+          />
           {error ? (
             <p id="plugin-install-error" className="text-xs text-destructive">
               {error}
