@@ -1,3 +1,4 @@
+import { PluginExternalBrowser } from './plugin-browser-external'
 import type { ValidDiscoveredPlugin } from './plugin-discovery'
 import { createPluginReviewSessions } from './plugin-review-host'
 import { createPluginBrowserAuthorizations } from './plugin-browser-host'
@@ -16,7 +17,11 @@ export function createPluginReviewIntegration(
   const browser = createPluginBrowserAuthorizations((key) =>
     withCapability(key, 'browser:authorize')
   )
+  const externalBrowser = new PluginExternalBrowser((key) =>
+    withCapability(key, 'browser:open-external')
+  )
   return {
+    externalBrowser,
     reviews,
     browser,
     panelInvoke: async (key: string, command: string, args: unknown) => {
@@ -33,6 +38,7 @@ export function createPluginReviewIntegration(
       return result
     },
     clear: () => {
+      externalBrowser.clear()
       browser.clear()
       reviews.clear()
     }

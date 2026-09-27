@@ -3,7 +3,9 @@ import {
   pluginAuthorizationHandleSchema,
   pluginCreatedAuthorizationSchema,
   pluginOpenedAuthorizationSchema,
-  pluginCanceledAuthorizationSchema
+  pluginCanceledAuthorizationSchema,
+  pluginOpenExternalSchema,
+  pluginOpenedExternalSchema
 } from './plugin-browser-contract'
 import { z } from 'zod'
 import {
@@ -135,6 +137,16 @@ export const PLUGIN_HOST_API_V0: readonly PluginHostMethodSpec[] = [
     panel: true,
     params: pluginOpenReviewSchema,
     result: pluginOpenedReviewSchema
+  }),
+  spec({
+    name: 'browser.openExternal',
+    since: '1.2',
+    scope: 'desktop',
+    capability: 'browser:open-external',
+    mutation: true,
+    panel: false,
+    params: pluginOpenExternalSchema,
+    result: pluginOpenedExternalSchema
   }),
   spec({
     name: 'browser.createAuthorization',

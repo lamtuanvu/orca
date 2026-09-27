@@ -16,6 +16,7 @@ export const PLUGIN_CAPABILITY_KINDS = [
   'commands:invoke-own',
   'diffs:open',
   'browser:authorize',
+  'browser:open-external',
   'workspace:read',
   'terminal:send',
   'notifications:show',
@@ -40,6 +41,7 @@ export const PLUGIN_CAPABILITY_DESCRIPTIONS: Record<PluginCapabilityKind, string
   'diffs:open': 'Open read-only native reviews supplied by this plugin',
   'browser:authorize':
     'Request browser sign-in after confirmation in Orca (HTTPS, or loopback development)',
+  'browser:open-external': 'Open HTTPS links (or loopback HTTP) in your default browser',
   'workspace:read':
     'Read the name, branch, git remotes, and terminal list of your focused worktree',
   'terminal:send': 'Type text into a terminal you can see (always a specific terminal)',

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import type { ActivePluginPanel } from '@/store/plugin-panels'
 import type { ActivityBarItem } from './activity-bar-buttons'
+import { CvHubIcon } from './cv-hub-icon'
 
 type PluginPanelIcon = ActivityBarItem['icon']
 
@@ -45,6 +46,7 @@ const PLUGIN_PANEL_ICONS: Record<string, PluginPanelIcon> = {
   calendar: Calendar,
   cloud: Cloud,
   code: Code,
+  cvhub: CvHubIcon,
   database: Database,
   filetext: FileText,
   flag: Flag,
