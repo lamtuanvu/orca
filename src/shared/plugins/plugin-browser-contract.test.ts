@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   pluginWebUrlSchema,
+  pluginOpenExternalSchema,
   pluginAuthorizationHandleSchema,
   pluginCreateAuthorizationSchema
 } from './plugin-browser-contract'
@@ -50,5 +51,28 @@ describe('browser authorization contract', () => {
         url: 'https://evil.example'
       }).success
     ).toBe(false)
+  })
+})
+
+describe('external browser contract', () => {
+  it('requires a separate capability and excludes panels', () => {
+    expect(getPluginHostMethodSpec('browser.openExternal')).toMatchObject({
+      capability: 'browser:open-external',
+      panel: false,
+      mutation: true
+    })
+  })
+
+  it('accepts only a URL with no caller-selected authority or shell options', () => {
+    expect(pluginOpenExternalSchema.safeParse({ url: 'https://hub.example/pr' }).success).toBe(true)
+    for (const params of [
+      { url: 'https://hub.example/pr', pluginId: 'other.plugin' },
+      { url: 'https://hub.example/pr', activate: true },
+      { url: 'http://hub.example/pr' },
+      { url: 'https://user@hub.example/pr' },
+      { url: 'data:text/html,hello' }
+    ]) {
+      expect(pluginOpenExternalSchema.safeParse(params).success).toBe(false)
+    }
   })
 })

@@ -150,8 +150,7 @@ contents through panel commands.
 
 ## Worker-only browser authorization
 
-Declare `{ "kind": "browser:authorize" }`. The old `browser.openExternal` method
-and `browser:open-external` capability are removed. Panels cannot call these methods.
+Declare `{ "kind": "browser:authorize" }`. Panels cannot call these methods.
 Workers use the existing `orca.host.call(method, params)` interface:
 
 ```js
@@ -193,3 +192,31 @@ OAuth registration, device-code requests, polling/backoff, expiry, refresh rotat
 revocation, encrypted token storage, and authenticated REST/MCP calls belong to the
 service integration worker/backend. The host does not need CV Hub-specific routes,
 client secrets, or account knowledge.
+
+## Worker-only external links
+
+The curated panel icon name `cv-hub` renders the CV Hub chevron mark using the
+surrounding text color, matching the activity bar in both light and dark themes.
+
+Declare `{ "kind": "browser:open-external" }` to open ordinary web links in the
+default desktop browser. This is a separate consent grant from `browser:authorize`;
+adding it to an installed plugin requires renewed consent.
+
+```js
+const { opened } = await orca.host.call('browser.openExternal', {
+  url: 'https://hub.example.com/owner/repository/pulls/42'
+})
+```
+
+Only HTTPS and loopback HTTP URLs without credentials are accepted, with the same
+2048-character limit as authorization URLs. Other protocols and extra parameters
+are rejected. The host checks plugin identity, consent, and activation before
+opening. There is no per-link confirmation after capability consent. An absent or
+failed desktop browser opener returns `{ opened: false }`; headless and remote
+hosts do not forward this request to a connected client. A plugin can then show a
+copyable link. Invalid URLs, revoked plugins, and capability violations fail the
+host call.
+
+Panels cannot call this API directly or navigate their iframe. Expose a narrow
+panel command that resolves a resource identifier to a URL in the worker. Continue
+to use the authorization methods above for sign-in.

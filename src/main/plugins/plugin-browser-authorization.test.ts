@@ -35,8 +35,11 @@ const input = {
 }
 
 describe('browser authorization boundary', () => {
-  it('removes the unrestricted browser API', () => {
-    expect(getPluginHostMethodSpec('browser.openExternal')).toBeNull()
+  it('keeps ordinary browser links behind separate worker-only consent', () => {
+    expect(getPluginHostMethodSpec('browser.openExternal')).toMatchObject({
+      capability: 'browser:open-external',
+      panel: false
+    })
   })
   it('binds an attempt to its plugin and exact URL, confirms once, and rejects replay', async () => {
     const f = fixture()

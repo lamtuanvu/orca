@@ -1,5 +1,6 @@
 import {
   pluginCreateAuthorizationSchema,
+  pluginOpenExternalSchema,
   pluginAuthorizationHandleSchema,
   type PluginCreateAuthorization
 } from '../../shared/plugins/plugin-browser-contract'
@@ -37,6 +38,7 @@ export type PluginHostServices = {
     pluginId: string,
     input: PluginCreateAuthorization
   ): { attemptId: string; expiresAt: number }
+  openExternal?(pluginId: string, url: string): Promise<{ opened: boolean }>
   openAuthorization?(pluginId: string, attemptId: string): Promise<{ opened: boolean }>
   cancelAuthorization?(pluginId: string, attemptId: string): { ok: true }
   resolveActiveWorktreeContext(): Promise<PluginWorktreeContext | null>
@@ -103,6 +105,10 @@ const HANDLERS = new Map<string, BoundPluginHostMethod>([
       throw new Error('Native reviews unavailable in this host')
     }
     return services.openReview(pluginId, pluginOpenReviewSchema.parse(params))
+  }),
+  definePluginMethod('browser.openExternal', async (params, { pluginId, services }) => {
+    const { url } = pluginOpenExternalSchema.parse(params)
+    return services.openExternal?.(pluginId, url) ?? { opened: false }
   }),
   definePluginMethod('browser.createAuthorization', async (params, { pluginId, services }) => {
     if (!services.createAuthorization) {

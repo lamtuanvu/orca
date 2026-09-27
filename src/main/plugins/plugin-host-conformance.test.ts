@@ -32,6 +32,7 @@ function createServices(): PluginHostServices {
       attemptId: '00000000-0000-4000-8000-000000000001',
       expiresAt: 1000
     }),
+    openExternal: async () => ({ opened: true }),
     openAuthorization: async () => ({ opened: true }),
     cancelAuthorization: () => ({ ok: true }),
     openReview: async () => ({
@@ -123,6 +124,7 @@ const successParams: Record<string, unknown> = {
     verificationUrl: 'https://hub.example/device',
     expiresIn: 30
   },
+  'browser.openExternal': { url: 'https://hub.example/owner/repo/pulls/42' },
   'browser.openAuthorization': { attemptId: '00000000-0000-4000-8000-000000000001' },
   'browser.cancelAuthorization': { attemptId: '00000000-0000-4000-8000-000000000001' },
   'workspace.readContext': {},
@@ -159,6 +161,46 @@ describe('plugin host main/relay conformance', () => {
       expect(outcomes, spec.name).toHaveLength(2)
       expect(outcomes[0], spec.name).toEqual(outcomes[1])
       expect(outcomes[0], spec.name).toMatchObject({ ok: true })
+    }
+  })
+
+  it('gates external links by worker identity and separate consent on both transports', async () => {
+    for (const [capabilities, viaPanel, expected] of [
+      [[], false, false],
+      [['browser:authorize'], false, false],
+      [['browser:open-external'], true, false],
+      [['browser:open-external'], false, true]
+    ] as const) {
+      const services = createServices()
+      services.openExternal = vi.fn(async () => ({ opened: true }))
+      const resolvePolicy = () => createPolicy(capabilities, services)
+      for (const adapter of Object.values(createAdapters(resolvePolicy))) {
+        const result = await adapter(
+          { method: 'browser.openExternal', params: { url: 'https://hub.example/pr' } },
+          viaPanel
+        )
+        expect(result.ok).toBe(expected)
+      }
+      if (expected) {
+        expect(services.openExternal).toHaveBeenCalledWith(PLUGIN_KEY, 'https://hub.example/pr')
+      } else {
+        expect(services.openExternal).not.toHaveBeenCalled()
+      }
+    }
+  })
+
+  it('reports unsupported external browser opening without an exception', async () => {
+    const services = createServices()
+    delete services.openExternal
+    for (const adapter of Object.values(
+      createAdapters(() => createPolicy(['browser:open-external'], services))
+    )) {
+      expect(
+        await adapter(
+          { method: 'browser.openExternal', params: { url: 'https://hub.example/pr' } },
+          false
+        )
+      ).toEqual({ ok: true, value: { opened: false } })
     }
   })
 

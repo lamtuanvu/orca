@@ -38,3 +38,6 @@ export const pluginCreatedAuthorizationSchema = pluginAuthorizationHandleSchema
 export const pluginOpenedAuthorizationSchema = z.object({ opened: z.boolean() }).strict()
 export const pluginCanceledAuthorizationSchema = z.object({ ok: z.literal(true) }).strict()
 export type PluginCreateAuthorization = z.infer<typeof pluginCreateAuthorizationSchema>
+
+export const pluginOpenExternalSchema = z.object({ url: pluginWebUrlSchema }).strict()
+export const pluginOpenedExternalSchema = z.object({ opened: z.boolean() }).strict()

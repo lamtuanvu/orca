@@ -38,7 +38,7 @@ it.each(['disable-enable', 'dispose'])(
       engines: { orca: '>=1.0.0' },
       pluginApi: 1,
       main: 'main.js',
-      capabilities: [{ kind: 'browser:authorize' }]
+      capabilities: [{ kind: 'browser:authorize' }, { kind: 'browser:open-external' }]
     })
     await writeFile(join(root, 'orca-plugin.json'), JSON.stringify(manifest))
     await writeFile(join(root, 'main.js'), 'export default function() {}')
@@ -59,6 +59,19 @@ it.each(['disable-enable', 'dispose'])(
     })
     try {
       await service.initialize()
+      expect(
+        await service.executeHostCall(
+          'example.demo',
+          'browser.openExternal',
+          { url: 'https://hub.example/owner/repo/pulls/42' },
+          { viaPanel: false }
+        )
+      ).toEqual({ ok: true, value: { opened: true } })
+      expect(electron.open).toHaveBeenCalledExactlyOnceWith(
+        'https://hub.example/owner/repo/pulls/42'
+      )
+      expect(electron.confirm).not.toHaveBeenCalled()
+      electron.open.mockClear()
       const created = await service.executeHostCall(
         'example.demo',
         'browser.createAuthorization',

@@ -1,3 +1,4 @@
+import type { PluginExternalBrowser } from './plugin-browser-external'
 import type { PluginBrowserAuthorizations } from './plugin-browser-authorization'
 import { compilePluginDataSchema } from '../../shared/plugins/plugin-data-schema'
 import type { ValidDiscoveredPlugin } from './plugin-discovery'
@@ -46,6 +47,7 @@ type Services = {
   eventBus: PluginEventBus
   capabilities(key: string): PluginCapabilityKind[] | null
   panelInvoke: Invoke
+  externalBrowser: PluginExternalBrowser
   browser: PluginBrowserAuthorizations
   reviews: PluginReviewSessions
   audit: PluginHostCallPolicy['audit']
@@ -77,6 +79,9 @@ export function executeServiceHostCall(
               options.viaPanel && owner?.startsWith('renderer:')
                 ? (key, args) => input.reviews.open(owner, key, args)
                 : undefined,
+            openExternal: options.viaPanel
+              ? undefined
+              : (key, url) => input.externalBrowser.open(key, url),
             createAuthorization: options.viaPanel
               ? undefined
               : (key, args) => input.browser.create(key, args),
